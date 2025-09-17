@@ -27,7 +27,7 @@ class CriptasApp:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Sistema de Administración de Criptas - Parroquia")
-        self.root.geometry("1920x1080")
+        self.root.geometry("1536x864")
         self.root.configure(bg='#f0f0f0')
         
         # Configurar estilo

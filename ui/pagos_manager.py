@@ -634,40 +634,41 @@ class PagoDialog:
         
         # Título
         ttk.Label(main_frame, text="Registrar Pago", 
-                 font=("Arial", 14, "bold")).grid(row=0, column=0, columnspan=2, pady=(0, 20))
+                font=("Arial", 14, "bold")).grid(row=0, column=0, columnspan=2, pady=(0, 20))
         
-        # Número de contrato
+        # Número de contrato con botón mejorado
         ttk.Label(main_frame, text="N° de Contrato:*").grid(row=1, column=0, sticky=tk.W, pady=5)
         contrato_frame = ttk.Frame(main_frame)
         contrato_frame.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5)
         
-        contrato_entry = ttk.Entry(contrato_frame, textvariable=self.numero_contrato_var, width=20)
+        contrato_entry = ttk.Entry(contrato_frame, textvariable=self.numero_contrato_var, 
+                                width=20, state="readonly")  # Solo lectura
         contrato_entry.pack(side=tk.LEFT)
         
         if not self.pago:  # Solo permitir buscar si es nuevo pago
-            ttk.Button(contrato_frame, text="Buscar", 
-                      command=self.search_venta).pack(side=tk.LEFT, padx=(10, 0))
+            ttk.Button(contrato_frame, text="🔍 Seleccionar Venta", 
+                    command=self.search_venta).pack(side=tk.LEFT, padx=(10, 0))
         else:
             contrato_entry.config(state="disabled")
         
         # Información del cliente (solo lectura)
         ttk.Label(main_frame, text="Cliente:").grid(row=2, column=0, sticky=tk.W, pady=5)
         ttk.Label(main_frame, textvariable=self.cliente_info_var, 
-                 foreground="blue").grid(row=2, column=1, sticky=tk.W, pady=5)
+                foreground="blue").grid(row=2, column=1, sticky=tk.W, pady=5)
         
         # Información de la venta (solo lectura)
         ttk.Label(main_frame, text="Venta:").grid(row=3, column=0, sticky=tk.W, pady=5)
         ttk.Label(main_frame, textvariable=self.venta_info_var, 
-                 foreground="blue").grid(row=3, column=1, sticky=tk.W, pady=5)
+                foreground="blue").grid(row=3, column=1, sticky=tk.W, pady=5)
         
         # Información del saldo (solo lectura)
         ttk.Label(main_frame, text="Saldo Actual:").grid(row=4, column=0, sticky=tk.W, pady=5)
         ttk.Label(main_frame, textvariable=self.saldo_info_var, 
-                 foreground="red", font=("Arial", 11, "bold")).grid(row=4, column=1, sticky=tk.W, pady=5)
+                foreground="red", font=("Arial", 11, "bold")).grid(row=4, column=1, sticky=tk.W, pady=5)
         
         # Separador
         ttk.Separator(main_frame, orient='horizontal').grid(row=5, column=0, columnspan=2, 
-                                                           sticky=(tk.W, tk.E), pady=20)
+                                                        sticky=(tk.W, tk.E), pady=20)
         
         # Monto del pago
         ttk.Label(main_frame, text="Monto del Pago:*").grid(row=6, column=0, sticky=tk.W, pady=5)
@@ -675,46 +676,57 @@ class PagoDialog:
         monto_frame.grid(row=6, column=1, sticky=(tk.W, tk.E), pady=5)
         
         ttk.Label(monto_frame, text="$").pack(side=tk.LEFT)
-        monto_entry = ttk.Entry(monto_frame, textvariable=self.monto_var, width=15)
-        monto_entry.pack(side=tk.LEFT)
+        monto_entry = ttk.Entry(monto_frame, textvariable=self.monto_var, width=20)
+        monto_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
         monto_entry.bind('<KeyRelease>', self.calculate_new_saldo)
         
-        # Nuevo saldo (calculado)
-        ttk.Label(main_frame, text="Nuevo Saldo:").grid(row=7, column=0, sticky=tk.W, pady=5)
-        self.nuevo_saldo_label = ttk.Label(main_frame, text="$0.00", 
-                                          foreground="green", font=("Arial", 11, "bold"))
-        self.nuevo_saldo_label.grid(row=7, column=1, sticky=tk.W, pady=5)
+        # Botón para pagar saldo completo
+        ttk.Button(monto_frame, text="Pagar Todo", 
+                command=self.pagar_saldo_completo).pack(side=tk.LEFT, padx=(10, 0))
         
         # Método de pago
-        ttk.Label(main_frame, text="Método de Pago:*").grid(row=8, column=0, sticky=tk.W, pady=5)
-        metodo_combo = ttk.Combobox(main_frame, textvariable=self.metodo_pago_var, width=27)
+        ttk.Label(main_frame, text="Método de Pago:*").grid(row=7, column=0, sticky=tk.W, pady=5)
+        metodo_combo = ttk.Combobox(main_frame, textvariable=self.metodo_pago_var, 
+                                width=27, state="readonly")
         metodo_combo['values'] = ('efectivo', 'transferencia', 'cheque', 'tarjeta_credito', 
-                                 'tarjeta_debito', 'deposito')
-        metodo_combo.grid(row=8, column=1, sticky=(tk.W, tk.E), pady=5)
+                                'tarjeta_debito', 'deposito')
+        metodo_combo.grid(row=7, column=1, sticky=(tk.W, tk.E), pady=5)
         
-        # Concepto
-        ttk.Label(main_frame, text="Concepto:*").grid(row=9, column=0, sticky=tk.W, pady=5)
+        # Concepto del pago con opciones predefinidas
+        ttk.Label(main_frame, text="Concepto:*").grid(row=8, column=0, sticky=tk.W, pady=5)
         concepto_combo = ttk.Combobox(main_frame, textvariable=self.concepto_var, width=27)
-        concepto_combo['values'] = ('Abono a cuenta', 'Pago total', 'Enganche', 
-                                   'Cuota mensual', 'Pago parcial', 'Liquidación')
-        concepto_combo.grid(row=9, column=1, sticky=(tk.W, tk.E), pady=5)
+        concepto_combo['values'] = (
+            'Abono a cuenta',
+            'Pago de enganche', 
+            'Liquidación total',
+            'Pago mensual',
+            'Pago parcial',
+            'Ajuste de saldo'
+        )
+        concepto_combo.grid(row=8, column=1, sticky=(tk.W, tk.E), pady=5)
+        
+        # Nuevo saldo después del pago
+        ttk.Label(main_frame, text="Nuevo Saldo:").grid(row=9, column=0, sticky=tk.W, pady=5)
+        self.nuevo_saldo_label = ttk.Label(main_frame, text="$0.00", 
+                                        font=("Arial", 11, "bold"), foreground="blue")
+        self.nuevo_saldo_label.grid(row=9, column=1, sticky=tk.W, pady=5)
         
         # Observaciones
         ttk.Label(main_frame, text="Observaciones:").grid(row=10, column=0, sticky=(tk.W, tk.N), pady=5)
-        self.observaciones_text = tk.Text(main_frame, height=4, width=30)
+        self.observaciones_text = tk.Text(main_frame, height=3, width=30)
         self.observaciones_text.grid(row=10, column=1, sticky=(tk.W, tk.E), pady=5)
         if self.observaciones_var.get():
             self.observaciones_text.insert("1.0", self.observaciones_var.get())
         
         # Nota de campos obligatorios
         ttk.Label(main_frame, text="* Campos obligatorios", font=("Arial", 9), 
-                 foreground="red").grid(row=11, column=0, columnspan=2, pady=10)
+                foreground="red").grid(row=11, column=0, columnspan=2, pady=10)
         
         # Botones
         button_frame = ttk.Frame(main_frame)
         button_frame.grid(row=12, column=0, columnspan=2, pady=20)
         
-        ttk.Button(button_frame, text="Guardar", command=self.save).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Guardar Pago", command=self.save).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Cancelar", command=self.cancel).pack(side=tk.LEFT, padx=5)
         
         # Configurar grid
@@ -725,29 +737,19 @@ class PagoDialog:
             self.load_venta_info()
     
     def search_venta(self):
-        """Buscar venta por número de contrato"""
-        numero_contrato = self.numero_contrato_var.get().strip()
-        if not numero_contrato:
-            messagebox.showwarning("Advertencia", "Ingrese un número de contrato")
-            return
-        
-        try:
-            db = get_db_session()
-            venta = db.query(Venta).filter(Venta.numero_contrato == numero_contrato).first()
+        """Abrir ventana de selección de ventas"""
+        dialog = VentaSelectionDialog(self.dialog)
+        if dialog.result:
+            # Cargar información de la venta seleccionada
+            venta = dialog.result
+            self.numero_contrato_var.set(venta.numero_contrato)
+            self.load_venta_info(venta)
             
-            if venta:
-                self.load_venta_info(venta)
-                messagebox.showinfo("Venta Encontrada", 
-                    f"Venta encontrada: {venta.cliente.nombre_completo}")
-            else:
-                messagebox.showerror("Venta No Encontrada", 
-                    "No se encontró una venta con ese número de contrato")
-                self.clear_venta_info()
-            
-            db.close()
-            
-        except Exception as e:
-            messagebox.showerror("Error", f"Error al buscar venta: {str(e)}")
+            # Mostrar mensaje de confirmación
+            messagebox.showinfo("Venta Seleccionada", 
+                f"Venta seleccionada: {venta.cliente.nombre_completo}\n"
+                f"Contrato: {venta.numero_contrato}\n"
+                f"Saldo pendiente: ${venta.saldo_restante:,.2f}")
     
     def load_venta_info(self, venta=None):
         """Cargar información de la venta"""
@@ -780,6 +782,21 @@ class PagoDialog:
         self.venta_info_var.set("")
         self.saldo_info_var.set("")
         self.nuevo_saldo_label.config(text="$0.00")
+
+    def pagar_saldo_completo(self):
+        """Llenar el monto con el saldo completo"""
+        saldo_text = self.saldo_info_var.get()
+        if saldo_text and "(" not in saldo_text:  # No está pagado
+            try:
+                # Extraer el valor numérico del saldo
+                saldo_limpio = saldo_text.replace("$", "").replace(",", "")
+                saldo_valor = float(saldo_limpio)
+                self.monto_var.set(str(saldo_valor))
+                self.calculate_new_saldo()
+            except ValueError:
+                messagebox.showwarning("Advertencia", "No se pudo determinar el saldo pendiente")
+        else:
+            messagebox.showinfo("Información", "Esta venta ya está pagada completamente")
     
     def calculate_new_saldo(self, event=None):
         """Calcular nuevo saldo después del pago"""
@@ -820,11 +837,17 @@ class PagoDialog:
     
     def save(self):
         """Guardar pago"""
-        # Validar campos obligatorios
+        # Validar que se haya seleccionado una venta
         if not self.numero_contrato_var.get().strip():
-            messagebox.showerror("Error", "El número de contrato es obligatorio")
+            messagebox.showerror("Error", "Debe seleccionar una venta primero")
             return
         
+        # Validar información de la venta cargada
+        if not self.cliente_info_var.get():
+            messagebox.showerror("Error", "La información de la venta no está cargada correctamente")
+            return
+        
+        # Validar campos obligatorios
         if not self.metodo_pago_var.get().strip():
             messagebox.showerror("Error", "El método de pago es obligatorio")
             return
@@ -840,6 +863,20 @@ class PagoDialog:
         except ValueError:
             messagebox.showerror("Error", "El monto debe ser un número válido mayor a 0")
             return
+        
+        # Validar que el monto no exceda el saldo pendiente (opcional - permitir sobrepagos)
+        try:
+            saldo_text = self.saldo_info_var.get()
+            if saldo_text and "(" not in saldo_text:
+                saldo_actual = float(saldo_text.replace("$", "").replace(",", ""))
+                if monto > saldo_actual * 1.1:  # Permitir 10% de margen
+                    response = messagebox.askyesno("Confirmación", 
+                        f"El monto (${monto:,.2f}) excede el saldo pendiente (${saldo_actual:,.2f}).\n"
+                        f"¿Desea continuar?")
+                    if not response:
+                        return
+        except ValueError:
+            pass  # Continuar si no se puede validar
         
         # Obtener observaciones del Text widget
         observaciones = self.observaciones_text.get("1.0", tk.END).strip()
@@ -858,6 +895,288 @@ class PagoDialog:
         """Cancelar operación"""
         self.dialog.destroy()
 
+class VentaSelectionDialog:
+    def __init__(self, parent):
+        self.result = None
+        self.selected_venta = None
+        self.venta_ids = {}
+        
+        # Crear ventana modal
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title("Seleccionar Venta para Pago")
+        self.dialog.geometry("800x500")
+        self.dialog.resizable(True, True)
+        self.dialog.transient(parent)
+        self.dialog.grab_set()
+        
+        # Variables para búsqueda
+        self.search_var = tk.StringVar()
+        self.filter_var = tk.StringVar(value="pendientes")
+        
+        self.create_widgets()
+        self.center_window()
+        self.load_ventas()
+        
+        # Esperar a que se cierre la ventana
+        self.dialog.wait_window()
+    
+    def create_widgets(self):
+        """Crear widgets del diálogo"""
+        main_frame = ttk.Frame(self.dialog, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Título
+        ttk.Label(main_frame, text="Seleccionar Venta para Registrar Pago", 
+                 font=("Arial", 12, "bold")).pack(pady=(0, 10))
+        
+        # Frame de búsqueda y filtros
+        search_frame = ttk.Frame(main_frame)
+        search_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        # Campo de búsqueda
+        ttk.Label(search_frame, text="Buscar:").pack(side=tk.LEFT, padx=(0, 5))
+        search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=30)
+        search_entry.pack(side=tk.LEFT, padx=(0, 10))
+        search_entry.bind('<KeyRelease>', self.on_search)
+        
+        # Filtro por estado
+        ttk.Label(search_frame, text="Estado:").pack(side=tk.LEFT, padx=(20, 5))
+        filter_combo = ttk.Combobox(search_frame, textvariable=self.filter_var, 
+                                   width=15, state="readonly")
+        filter_combo['values'] = ('todas', 'pendientes', 'pagadas')
+        filter_combo.pack(side=tk.LEFT, padx=(0, 10))
+        filter_combo.bind('<<ComboboxSelected>>', self.on_filter_change)
+        
+        # Botón actualizar
+        ttk.Button(search_frame, text="Actualizar", 
+                  command=self.load_ventas).pack(side=tk.LEFT, padx=(10, 0))
+        
+        # Frame principal para la tabla
+        table_frame = ttk.Frame(main_frame)
+        table_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        # Crear TreeView con scrollbars
+        columns = ('contrato', 'cliente', 'nicho', 'precio', 'saldo', 'estado')
+        self.tree = ttk.Treeview(table_frame, columns=columns, show='headings', height=15)
+        
+        # Configurar columnas
+        self.tree.heading('contrato', text='N° Contrato')
+        self.tree.heading('cliente', text='Cliente')
+        self.tree.heading('nicho', text='Nicho')
+        self.tree.heading('precio', text='Precio Total')
+        self.tree.heading('saldo', text='Saldo Pendiente')
+        self.tree.heading('estado', text='Estado')
+        
+        # Configurar ancho de columnas
+        self.tree.column('contrato', width=120)
+        self.tree.column('cliente', width=200)
+        self.tree.column('nicho', width=100)
+        self.tree.column('precio', width=120)
+        self.tree.column('saldo', width=120)
+        self.tree.column('estado', width=100)
+        
+        # Scrollbars
+        v_scrollbar = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self.tree.yview)
+        h_scrollbar = ttk.Scrollbar(table_frame, orient=tk.HORIZONTAL, command=self.tree.xview)
+        self.tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
+        
+        # Empaquetar TreeView y scrollbars
+        self.tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        v_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        h_scrollbar.grid(row=1, column=0, sticky=(tk.W, tk.E))
+        
+        table_frame.grid_rowconfigure(0, weight=1)
+        table_frame.grid_columnconfigure(0, weight=1)
+        
+        # Eventos del TreeView
+        self.tree.bind('<Double-1>', self.on_double_click)
+        self.tree.bind('<Return>', self.on_double_click)
+        
+        # Frame de información
+        info_frame = ttk.Frame(main_frame)
+        info_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        self.info_label = ttk.Label(info_frame, text="Seleccione una venta y haga doble clic o presione Seleccionar", 
+                                   font=("Arial", 9), foreground="gray")
+        self.info_label.pack()
+        
+        # Frame de botones
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X)
+        
+        ttk.Button(button_frame, text="Seleccionar", 
+                  command=self.select_venta).pack(side=tk.RIGHT, padx=(10, 0))
+        ttk.Button(button_frame, text="Cancelar", 
+                  command=self.cancel).pack(side=tk.RIGHT)
+        
+        # Focus inicial en el campo de búsqueda
+        search_entry.focus()
+    
+    def load_ventas(self):
+        """Cargar todas las ventas"""
+        try:
+            db = get_db_session()
+            
+            # Query base
+            query = db.query(Venta).join(Cliente).join(Nicho)
+            
+            # Aplicar filtro por estado
+            filter_value = self.filter_var.get()
+            if filter_value == "pendientes":
+                query = query.filter(Venta.pagado_completamente == False)
+            elif filter_value == "pagadas":
+                query = query.filter(Venta.pagado_completamente == True)
+            # "todas" no aplica filtro
+            
+            # Ordenar por fecha de venta (más recientes primero)
+            ventas = query.order_by(Venta.fecha_venta.desc()).all()
+            
+            # Limpiar TreeView
+            for item in self.tree.get_children():
+                self.tree.delete(item)
+            self.venta_ids.clear()
+            
+            # Agregar ventas
+            for venta in ventas:
+                estado = "Pagado" if venta.pagado_completamente else "Pendiente"
+                
+                # Colorear según estado
+                tag = 'pagado' if venta.pagado_completamente else 'pendiente'
+                
+                values = (
+                    venta.numero_contrato,
+                    venta.cliente.nombre_completo,
+                    venta.nicho.numero,
+                    f"${venta.precio_total:,.2f}",
+                    f"${venta.saldo_restante:,.2f}",
+                    estado
+                )
+                
+                item = self.tree.insert('', 'end', values=values, tags=(tag,))
+                self.venta_ids[item] = venta.id
+            
+            # Configurar colores para las tags
+            self.tree.tag_configure('pagado', background='#d4edda')
+            self.tree.tag_configure('pendiente', background='#fff3cd')
+            
+            db.close()
+            
+            # Actualizar información
+            total_ventas = len(ventas)
+            pendientes = len([v for v in ventas if not v.pagado_completamente])
+            self.info_label.config(
+                text=f"Total: {total_ventas} ventas | Pendientes: {pendientes} | Pagadas: {total_ventas - pendientes}"
+            )
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al cargar ventas: {str(e)}")
+    
+    def on_search(self, event=None):
+        """Filtrar ventas según búsqueda"""
+        search_term = self.search_var.get().strip().lower()
+        
+        if not search_term:
+            self.load_ventas()
+            return
+        
+        try:
+            db = get_db_session()
+            
+            # Query con búsqueda
+            query = db.query(Venta).join(Cliente).join(Nicho).filter(
+                Venta.numero_contrato.contains(search_term) |
+                Cliente.nombre.contains(search_term) |
+                Cliente.apellido.contains(search_term) |
+                Cliente.cedula.contains(search_term) |
+                Nicho.numero.contains(search_term)
+            )
+            
+            # Aplicar filtro por estado
+            filter_value = self.filter_var.get()
+            if filter_value == "pendientes":
+                query = query.filter(Venta.pagado_completamente == False)
+            elif filter_value == "pagadas":
+                query = query.filter(Venta.pagado_completamente == True)
+            
+            ventas = query.order_by(Venta.fecha_venta.desc()).limit(100).all()
+            
+            # Limpiar TreeView
+            for item in self.tree.get_children():
+                self.tree.delete(item)
+            
+            # Agregar resultados
+            for venta in ventas:
+                estado = "Pagado" if venta.pagado_completamente else "Pendiente"
+                tag = 'pagado' if venta.pagado_completamente else 'pendiente'
+                
+                values = (
+                    venta.numero_contrato,
+                    venta.cliente.nombre_completo,
+                    venta.nicho.numero,
+                    f"${venta.precio_total:,.2f}",
+                    f"${venta.saldo_restante:,.2f}",
+                    estado
+                )
+                
+                item = self.tree.insert('', 'end', values=values, tags=(tag,))
+                self.tree.set(item, '#0', venta.id)
+            
+            db.close()
+            
+            # Actualizar información
+            self.info_label.config(text=f"Encontradas {len(ventas)} ventas")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error en la búsqueda: {str(e)}")
+    
+    def on_filter_change(self, event=None):
+        """Manejar cambio de filtro"""
+        self.load_ventas()
+    
+    def on_double_click(self, event=None):
+        """Manejar doble clic en TreeView"""
+        self.select_venta()
+    
+    def select_venta(self):
+        """Seleccionar venta y cerrar diálogo"""
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showwarning("Advertencia", "Seleccione una venta")
+            return
+        
+        # Obtener ID de la venta desde el TreeView
+        item = selected[0]
+        if item not in self.venta_ids:
+            messagebox.showerror("Error", "Error interno: No se pudo obtener el ID de la venta")
+            return
+
+        venta_id = self.venta_ids[item]
+        
+        try:
+            db = get_db_session()
+            venta = db.query(Venta).filter(Venta.id == venta_id).first()
+            
+            if venta:
+                self.result = venta
+                self.dialog.destroy()
+            else:
+                messagebox.showerror("Error", "No se pudo cargar la venta seleccionada")
+            
+            db.close()
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al cargar venta: {str(e)}")
+    
+    def cancel(self):
+        """Cancelar selección"""
+        self.dialog.destroy()
+    
+    def center_window(self):
+        """Centrar ventana en la pantalla"""
+        self.dialog.update_idletasks()
+        x = (self.dialog.winfo_screenwidth() // 2) - (self.dialog.winfo_width() // 2)
+        y = (self.dialog.winfo_screenheight() // 2) - (self.dialog.winfo_height() // 2)
+        self.dialog.geometry(f"+{x}+{y}")
 
 class PagoDetailsDialog:
     def __init__(self, parent, pago):
