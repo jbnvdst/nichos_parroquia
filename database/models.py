@@ -8,6 +8,12 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship,
 from datetime import datetime
 from typing import List, Optional
 
+import shortuuid
+
+def generar_cedula_automatica():
+    """Generar cédula automática usando shortuuid"""
+    return shortuuid.uuid()[:12].upper()
+
 # Configuración de la base de datos
 DATABASE_URL = "sqlite:///criptas.db"
 engine = create_engine(DATABASE_URL, echo=False)
@@ -37,12 +43,19 @@ class Cliente(Base):
         "Beneficiario", foreign_keys="Beneficiario.beneficiario_id", back_populates="beneficiario_persona"
     )
     
+    def __init__(self, **kwargs):
+        # Generar cédula automática si no se proporciona
+        if 'cedula' not in kwargs or not kwargs['cedula']:
+            kwargs['cedula'] = generar_cedula_automatica()
+        super().__init__(**kwargs)
+    
     def __repr__(self):
         return f"Cliente(id={self.id}, nombre='{self.nombre} {self.apellido}', cedula='{self.cedula}')"
     
     @property
     def nombre_completo(self):
         return f"{self.nombre} {self.apellido}"
+
 
 class Nicho(Base):
     __tablename__ = "nichos"
@@ -142,6 +155,28 @@ def get_db_session():
         return db
     finally:
         pass  # No cerramos aquí, se debe cerrar manualmente
+
+def crear_cliente_con_cedula_automatica(nombre, apellido, telefono=None, email=None, direccion=None):
+    """Crear un nuevo cliente con cédula generada automáticamente"""
+    db = get_db_session()
+    try:
+        cliente = Cliente(
+            nombre=nombre,
+            apellido=apellido,
+            telefono=telefono,
+            email=email,
+            direccion=direccion
+            # La cédula se genera automáticamente en el __init__
+        )
+        db.add(cliente)
+        db.commit()
+        db.refresh(cliente)
+        return cliente
+    except Exception as e:
+        db.rollback()
+        raise e
+    finally:
+        db.close()
 
 def crear_nicho(numero, seccion, fila, columna, precio, descripcion=None):
     """Crear un nuevo nicho"""

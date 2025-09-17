@@ -85,8 +85,8 @@ class PDFGenerator:
         
         # Crear documento
         doc = SimpleDocTemplate(output_path, pagesize=letter,
-                              rightMargin=72, leftMargin=72,
-                              topMargin=72, bottomMargin=18)
+                              rightMargin=50, leftMargin=50,
+                              topMargin=50, bottomMargin=18)
         
         # Contenido del documento
         story = []

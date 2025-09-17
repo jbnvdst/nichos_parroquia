@@ -236,23 +236,24 @@ class VentasManager:
     def get_or_create_cliente(self, db, cliente_data):
         """Obtener cliente existente o crear nuevo"""
         # Buscar cliente existente por cédula
-        cliente = db.query(Cliente).filter(Cliente.cedula == cliente_data['cedula']).first()
-        
-        if cliente:
+
+        try:
+            cliente = Cliente(
+                nombre=cliente_data['nombre'],
+                apellido=cliente_data['apellido'],
+                # La cédula se genera automáticamente
+                telefono=cliente_data.get('telefono'),
+                email=cliente_data.get('email'),
+                direccion=cliente_data.get('direccion')
+            )
+            
+            db.add(cliente)
+            db.flush()  # CRÍTICO: Esto genera el ID del cliente
             return cliente
-        
-        # Crear nuevo cliente
-        cliente = Cliente(
-            nombre=cliente_data['nombre'],
-            apellido=cliente_data['apellido'],
-            cedula=cliente_data['cedula'],
-            telefono=cliente_data.get('telefono'),
-            email=cliente_data.get('email'),
-            direccion=cliente_data.get('direccion')
-        )
-        
-        db.add(cliente)
-        return cliente
+            
+        except Exception as e:
+            print(f"Error al crear cliente: {e}")
+            return None
     
     def view_sale_details(self):
         """Ver detalles de la venta seleccionada"""
@@ -558,7 +559,6 @@ class VentaDialog:
         # Variables para cliente titular
         self.nombre_var = tk.StringVar()
         self.apellido_var = tk.StringVar()
-        self.cedula_var = tk.StringVar()
         self.telefono_var = tk.StringVar()
         self.email_var = tk.StringVar()
         self.direccion_var = tk.StringVar()
@@ -589,7 +589,6 @@ class VentaDialog:
             cliente = self.venta.cliente
             self.nombre_var.set(cliente.nombre)
             self.apellido_var.set(cliente.apellido)
-            self.cedula_var.set(cliente.cedula)
             self.telefono_var.set(cliente.telefono or "")
             self.email_var.set(cliente.email or "")
             self.direccion_var.set(cliente.direccion or "")
@@ -610,9 +609,9 @@ class VentaDialog:
                         'nombre': ben.nombre,
                         'apellido': ben.apellido,
                         'cedula': ben.cedula,
-                        'telefono': ben.telefono or "",
-                        'email': ben.email or "",
-                        'direccion': ben.direccion or ""
+                        'telefono': ben.telefono,
+                        'email': ben.email,
+                        'direccion': ben.direccion
                     })
     
     def create_widgets(self):
@@ -655,13 +654,6 @@ class VentaDialog:
         # Apellido
         ttk.Label(parent, text="Apellido:*").grid(row=2, column=0, sticky=tk.W, pady=5)
         ttk.Entry(parent, textvariable=self.apellido_var, width=30).grid(row=2, column=1, sticky=(tk.W, tk.E), pady=5)
-        
-        # Cédula
-        ttk.Label(parent, text="Cédula:*").grid(row=3, column=0, sticky=tk.W, pady=5)
-        cedula_frame = ttk.Frame(parent)
-        cedula_frame.grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5)
-        ttk.Entry(cedula_frame, textvariable=self.cedula_var, width=20).pack(side=tk.LEFT)
-        ttk.Button(cedula_frame, text="Buscar", command=self.search_client).pack(side=tk.LEFT, padx=(10, 0))
         
         # Teléfono
         ttk.Label(parent, text="Teléfono:").grid(row=4, column=0, sticky=tk.W, pady=5)
@@ -771,48 +763,6 @@ class VentaDialog:
         parent.columnconfigure(0, weight=1)
         parent.rowconfigure(1, weight=1)
     
-    def search_client(self):
-        """Buscar cliente por cédula"""
-        cedula = self.cedula_var.get().strip()
-        if not cedula:
-            messagebox.showwarning("Advertencia", "Ingrese una cédula para buscar")
-            return
-        
-        try:
-            db = get_db_session()
-            cliente = db.query(Cliente).filter(Cliente.cedula == cedula).first()
-            
-            if cliente:
-                # Cargar datos del cliente encontrado
-                self.nombre_var.set(cliente.nombre)
-                self.apellido_var.set(cliente.apellido)
-                self.telefono_var.set(cliente.telefono or "")
-                self.email_var.set(cliente.email or "")
-                
-                # Limpiar y cargar dirección
-                self.direccion_text.delete("1.0", tk.END)
-                if cliente.direccion:
-                    self.direccion_text.insert("1.0", cliente.direccion)
-                
-                messagebox.showinfo("Cliente Encontrado", 
-                    f"Cliente encontrado: {cliente.nombre_completo}")
-            else:
-                response = messagebox.askyesno("Cliente No Encontrado", 
-                    "No se encontró un cliente con esa cédula.\n"
-                    "¿Desea crear un nuevo cliente?")
-                if response:
-                    # Limpiar campos para nuevo cliente
-                    self.nombre_var.set("")
-                    self.apellido_var.set("")
-                    self.telefono_var.set("")
-                    self.email_var.set("")
-                    self.direccion_text.delete("1.0", tk.END)
-            
-            db.close()
-            
-        except Exception as e:
-            messagebox.showerror("Error", f"Error al buscar cliente: {str(e)}")
-    
     def update_nichos_list(self):
         """Actualizar lista de nichos disponibles"""
         try:
@@ -912,7 +862,8 @@ class VentaDialog:
         # Agregar beneficiarios
         for i, beneficiario in enumerate(self.beneficiarios, 1):
             nombre_completo = f"{i}. {beneficiario['nombre']} {beneficiario['apellido']}"
-            self.beneficiarios_tree.insert('', 'end', values=(nombre_completo, beneficiario['cedula']))
+            cedula_display = "Se generará automáticamente"
+            self.beneficiarios_tree.insert('', 'end', values=(nombre_completo, cedula_display))
     
     def center_window(self):
         """Centrar ventana en la pantalla"""
@@ -923,10 +874,9 @@ class VentaDialog:
     
     def save(self):
         """Guardar venta"""
-        # Validar datos del cliente
-        if not all([self.nombre_var.get().strip(), self.apellido_var.get().strip(), 
-                   self.cedula_var.get().strip()]):
-            messagebox.showerror("Error", "Nombre, apellido y cédula son obligatorios")
+        # Validar datos del cliente (SIN CEDULA)
+        if not all([self.nombre_var.get().strip(), self.apellido_var.get().strip()]):
+            messagebox.showerror("Error", "Nombre y apellido son obligatorios")
             return
         
         # Validar datos de la venta
@@ -962,7 +912,7 @@ class VentaDialog:
             'cliente': {
                 'nombre': self.nombre_var.get().strip(),
                 'apellido': self.apellido_var.get().strip(),
-                'cedula': self.cedula_var.get().strip(),
+                # ELIMINADA: 'cedula': self.cedula_var.get().strip(),
                 'telefono': self.telefono_var.get().strip() or None,
                 'email': self.email_var.get().strip() or None,
                 'direccion': direccion or None
@@ -1000,6 +950,39 @@ class VentaDialog:
             
         except Exception:
             return None
+        
+    def get_client_data(self):
+        """Obtener datos del cliente del formulario"""
+        direccion = self.direccion_text.get("1.0", tk.END).strip()
+        
+        return {
+            'nombre': self.nombre_var.get().strip(),
+            'apellido': self.apellido_var.get().strip(),
+            # *** ELIMINADA: 'cedula': self.cedula_var.get().strip(), ***
+            'telefono': self.telefono_var.get().strip(),
+            'email': self.email_var.get().strip(),
+            'direccion': direccion if direccion else None
+        }
+    
+    def validate_cliente_data(self, cliente_data):
+        """Validar datos del cliente (SIN validación de cédula)"""
+        if not cliente_data['nombre']:
+            messagebox.showerror("Error", "El nombre es obligatorio")
+            return False
+        
+        if not cliente_data['apellido']:
+            messagebox.showerror("Error", "El apellido es obligatorio")
+            return False
+        
+        return True
+    
+    def show_cliente_info(self, cliente):
+        """Mostrar información del cliente recién creado"""
+        messagebox.showinfo("Cliente Creado", 
+            f"Cliente creado exitosamente:\n"
+            f"Nombre: {cliente.nombre_completo}\n"
+            f"Cédula: {cliente.cedula}\n"
+            f"Teléfono: {cliente.telefono or 'N/A'}")
     
     def cancel(self):
         """Cancelar operación"""
@@ -1021,7 +1004,6 @@ class BeneficiarioDialog:
         # Variables
         self.nombre_var = tk.StringVar()
         self.apellido_var = tk.StringVar()
-        self.cedula_var = tk.StringVar()
         self.telefono_var = tk.StringVar()
         self.email_var = tk.StringVar()
         self.direccion_var = tk.StringVar()
@@ -1048,30 +1030,27 @@ class BeneficiarioDialog:
         ttk.Label(main_frame, text="Apellido:*").grid(row=2, column=0, sticky=tk.W, pady=5)
         ttk.Entry(main_frame, textvariable=self.apellido_var, width=30).grid(row=2, column=1, sticky=(tk.W, tk.E), pady=5)
         
-        # Cédula
-        ttk.Label(main_frame, text="Cédula:*").grid(row=3, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(main_frame, textvariable=self.cedula_var, width=30).grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5)
-        
         # Teléfono
-        ttk.Label(main_frame, text="Teléfono:").grid(row=4, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(main_frame, textvariable=self.telefono_var, width=30).grid(row=4, column=1, sticky=(tk.W, tk.E), pady=5)
+        ttk.Label(main_frame, text="Teléfono:").grid(row=3, column=0, sticky=tk.W, pady=5)
+        ttk.Entry(main_frame, textvariable=self.telefono_var, width=30).grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5)
         
         # Email
-        ttk.Label(main_frame, text="Email:").grid(row=5, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(main_frame, textvariable=self.email_var, width=30).grid(row=5, column=1, sticky=(tk.W, tk.E), pady=5)
+        ttk.Label(main_frame, text="Email:").grid(row=4, column=0, sticky=tk.W, pady=5)
+        ttk.Entry(main_frame, textvariable=self.email_var, width=30).grid(row=4, column=1, sticky=(tk.W, tk.E), pady=5)
         
         # Dirección
-        ttk.Label(main_frame, text="Dirección:").grid(row=6, column=0, sticky=(tk.W, tk.N), pady=5)
+        ttk.Label(main_frame, text="Dirección:").grid(row=5, column=0, sticky=(tk.W, tk.N), pady=5)
         self.direccion_text = tk.Text(main_frame, height=3, width=30)
-        self.direccion_text.grid(row=6, column=1, sticky=(tk.W, tk.E), pady=5)
+        self.direccion_text.grid(row=5, column=1, sticky=(tk.W, tk.E), pady=5)
+
         
-        # Nota
+        # Nota de campos obligatorios
         ttk.Label(main_frame, text="* Campos obligatorios", font=("Arial", 9), 
-                 foreground="red").grid(row=7, column=0, columnspan=2, pady=10)
-        
+                 foreground="red").grid(row=6, column=0, columnspan=2, pady=10)
+
         # Botones
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=8, column=0, columnspan=2, pady=20)
+        button_frame.grid(row=7, column=0, columnspan=2, pady=20)
         
         ttk.Button(button_frame, text="Guardar", command=self.save).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Cancelar", command=self.cancel).pack(side=tk.LEFT, padx=5)
@@ -1088,9 +1067,8 @@ class BeneficiarioDialog:
     def save(self):
         """Guardar beneficiario"""
         # Validar campos obligatorios
-        if not all([self.nombre_var.get().strip(), self.apellido_var.get().strip(), 
-                   self.cedula_var.get().strip()]):
-            messagebox.showerror("Error", "Nombre, apellido y cédula son obligatorios")
+        if not all([self.nombre_var.get().strip(), self.apellido_var.get().strip()]):
+            messagebox.showerror("Error", "Nombre y apellido son obligatorios")
             return
         
         # Obtener dirección del Text widget
@@ -1099,7 +1077,6 @@ class BeneficiarioDialog:
         self.result = {
             'nombre': self.nombre_var.get().strip(),
             'apellido': self.apellido_var.get().strip(),
-            'cedula': self.cedula_var.get().strip(),
             'telefono': self.telefono_var.get().strip() or None,
             'email': self.email_var.get().strip() or None,
             'direccion': direccion or None

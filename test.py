@@ -634,8 +634,12 @@ class NichoDialog:
             messagebox.showerror("Error", "La columna es obligatoria")
             return
         
+        if not self.precio_var.get().strip():
+            messagebox.showerror("Error", "El precio es obligatorio")
+            return
+        
         try:
-            precio = float(self.precio_var.get())
+            precio = float(self.precio_var.get().strip())
             if precio <= 0:
                 raise ValueError("El precio debe ser mayor a 0")
         except ValueError:
@@ -668,7 +672,7 @@ class BatchNichosDialog:
         # Crear ventana modal
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Crear Lote de Nichos")
-        self.dialog.geometry("500x550")  # Aumenté la altura para que se vean todos los elementos
+        self.dialog.geometry("450x400")
         self.dialog.resizable(False, False)
         self.dialog.transient(parent)
         self.dialog.grab_set()
@@ -748,22 +752,12 @@ class BatchNichosDialog:
         ttk.Label(main_frame, text="* Campos obligatorios", font=("Arial", 9), 
                  foreground="red").grid(row=8, column=0, columnspan=2, pady=10)
         
-        # Separador
-        ttk.Separator(main_frame, orient='horizontal').grid(row=9, column=0, columnspan=2, 
-                                                           sticky=(tk.W, tk.E), pady=10)
-        
-        # Botones (hacer más visibles)
+        # Botones
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=10, column=0, columnspan=2, pady=20)
+        button_frame.grid(row=9, column=0, columnspan=2, pady=20)
         
-        # Botón principal más grande y visible
-        crear_btn = ttk.Button(button_frame, text="✅ CREAR LOTE DE NICHOS", 
-                              command=self.save, width=25)
-        crear_btn.pack(side=tk.LEFT, padx=10)
-        
-        cancelar_btn = ttk.Button(button_frame, text="❌ Cancelar", 
-                                 command=self.cancel, width=15)
-        cancelar_btn.pack(side=tk.LEFT, padx=10)
+        ttk.Button(button_frame, text="Crear Lote", command=self.save).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Cancelar", command=self.cancel).pack(side=tk.LEFT, padx=5)
         
         # Configurar grid
         main_frame.columnconfigure(1, weight=1)
@@ -775,10 +769,32 @@ class BatchNichosDialog:
         """Actualizar vista previa"""
         try:
             prefijo = self.prefijo_var.get()
-            fila_inicio = int(self.fila_inicio_var.get() or 1)
-            fila_fin = int(self.fila_fin_var.get() or 1)
-            columna_inicio = int(self.columna_inicio_var.get() or 1)
-            columna_fin = int(self.columna_fin_var.get() or 1)
+            fila_inicio_str = self.fila_inicio_var.get().strip()
+            fila_fin_str = self.fila_fin_var.get().strip()
+            columna_inicio_str = self.columna_inicio_var.get().strip()
+            columna_fin_str = self.columna_fin_var.get().strip()
+            
+            # Verificar que todos los campos tengan valores
+            if not all([prefijo, fila_inicio_str, fila_fin_str, columna_inicio_str, columna_fin_str]):
+                preview_text = "Complete todos los campos para ver la vista previa"
+                self.preview_label.config(text=preview_text)
+                return
+            
+            fila_inicio = int(fila_inicio_str)
+            fila_fin = int(fila_fin_str)
+            columna_inicio = int(columna_inicio_str)
+            columna_fin = int(columna_fin_str)
+            
+            # Verificar rangos válidos
+            if fila_inicio > fila_fin or columna_inicio > columna_fin:
+                preview_text = "Rangos inválidos: el inicio debe ser menor o igual al fin"
+                self.preview_label.config(text=preview_text)
+                return
+            
+            if fila_inicio <= 0 or columna_inicio <= 0:
+                preview_text = "Los números de fila y columna deben ser positivos"
+                self.preview_label.config(text=preview_text)
+                return
             
             total_nichos = (fila_fin - fila_inicio + 1) * (columna_fin - columna_inicio + 1)
             
@@ -789,7 +805,9 @@ class BatchNichosDialog:
             preview_text += f"Ejemplos: {ejemplo1}, {ejemplo2}"
             
         except ValueError:
-            preview_text = "Ingrese valores válidos para ver la vista previa"
+            preview_text = "Ingrese valores numéricos válidos para ver la vista previa"
+        except Exception as e:
+            preview_text = "Error en la vista previa"
         
         self.preview_label.config(text=preview_text)
     
@@ -811,44 +829,39 @@ class BatchNichosDialog:
             messagebox.showerror("Error", "La sección es obligatoria")
             return
         
-        # Validar que los campos numéricos no estén vacíos
+        # Validar que los campos de números no estén vacíos
         if not self.fila_inicio_var.get().strip():
             messagebox.showerror("Error", "La fila de inicio es obligatoria")
             return
-        
+            
         if not self.fila_fin_var.get().strip():
             messagebox.showerror("Error", "La fila final es obligatoria")
             return
-        
+            
         if not self.columna_inicio_var.get().strip():
             messagebox.showerror("Error", "La columna de inicio es obligatoria")
             return
-        
+            
         if not self.columna_fin_var.get().strip():
             messagebox.showerror("Error", "La columna final es obligatoria")
             return
-        
+            
         if not self.precio_var.get().strip():
             messagebox.showerror("Error", "El precio es obligatorio")
             return
         
         try:
-            # Convertir y validar números enteros
             fila_inicio = int(self.fila_inicio_var.get().strip())
             fila_fin = int(self.fila_fin_var.get().strip())
             columna_inicio = int(self.columna_inicio_var.get().strip())
             columna_fin = int(self.columna_fin_var.get().strip())
+            precio = float(self.precio_var.get().strip())
             
-            # Convertir y validar precio (quitar espacios y comas si las hay)
-            precio_str = self.precio_var.get().strip().replace(',', '')
-            precio = float(precio_str)
-            
-            # Validaciones lógicas
-            if fila_inicio <= 0:
-                raise ValueError("La fila de inicio debe ser mayor a 0")
-            
-            if columna_inicio <= 0:
-                raise ValueError("La columna de inicio debe ser mayor a 0")
+            if fila_inicio <= 0 or fila_fin <= 0:
+                raise ValueError("Las filas deben ser números positivos")
+                
+            if columna_inicio <= 0 or columna_fin <= 0:
+                raise ValueError("Las columnas deben ser números positivos")
             
             if fila_inicio > fila_fin:
                 raise ValueError("La fila de inicio debe ser menor o igual a la fila final")
@@ -860,25 +873,10 @@ class BatchNichosDialog:
                 raise ValueError("El precio debe ser mayor a 0")
                 
         except ValueError as e:
-            # Manejar errores específicos de conversión
-            error_msg = str(e)
-            if "could not convert string to float" in error_msg:
-                messagebox.showerror("Error", "El precio debe ser un número válido (ejemplo: 1500 o 1500.50)")
-            elif "invalid literal for int()" in error_msg:
-                messagebox.showerror("Error", "Las filas y columnas deben ser números enteros válidos")
-            else:
-                messagebox.showerror("Error", f"Error en los datos: {error_msg}")
+            messagebox.showerror("Error", f"Error en los datos: {str(e)}")
             return
         
         total_nichos = (fila_fin - fila_inicio + 1) * (columna_fin - columna_inicio + 1)
-        
-        # Validar que el total no sea excesivo
-        if total_nichos > 1000:
-            response = messagebox.askyesno("Advertencia", 
-                f"Está a punto de crear {total_nichos} nichos. "
-                f"Esto podría tomar mucho tiempo. ¿Desea continuar?")
-            if not response:
-                return
         
         # Confirmar creación
         response = messagebox.askyesno("Confirmación", 
