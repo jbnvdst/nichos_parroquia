@@ -196,16 +196,23 @@ class PagosManager:
                 )
                 
                 db.add(pago)
-                
+
+                # Hacer flush para que el pago esté disponible en la sesión
+                db.flush()
+
                 # Actualizar saldo de la venta
                 venta.actualizar_saldo()
                 venta.fecha_ultimo_pago = datetime.now()
-                
+
+                # Cargar todas las relaciones necesarias antes de cerrar la sesión
+                cliente = venta.cliente
+                nicho = venta.nicho
+
                 db.commit()
-                
+
                 # Generar recibo PDF automáticamente
                 self.generate_receipt_pdf(pago, venta)
-                
+
                 db.close()
                 
                 self.load_payments()
@@ -258,16 +265,46 @@ class PagosManager:
             )
             
             # Preguntar si desea abrir el PDF
-            response = messagebox.askyesno("PDF Generado", 
+            response = messagebox.askyesno("PDF Generado",
                 f"Recibo generado exitosamente:\n{pdf_path}\n\n¿Desea abrirlo ahora?")
-            
+
             if response:
-                os.startfile(pdf_path)  # Windows
-                # Para Linux/Mac usar: os.system(f"xdg-open {pdf_path}")
+                self.open_pdf_file(pdf_path)
             
         except Exception as e:
             messagebox.showerror("Error", f"Error al generar PDF: {str(e)}")
-    
+
+    def open_pdf_file(self, pdf_path):
+        """Abrir archivo PDF de manera segura multiplataforma"""
+        import subprocess
+        import platform
+
+        try:
+            # Verificar que el archivo existe
+            if not os.path.exists(pdf_path):
+                messagebox.showerror("Error", f"El archivo no se encuentra:\n{pdf_path}")
+                return
+
+            # Detectar sistema operativo y usar el comando apropiado
+            system = platform.system()
+
+            if system == "Windows":
+                # Para Windows, usar subprocess con shell=True
+                subprocess.run(f'start "" "{pdf_path}"', shell=True, check=True)
+            elif system == "Darwin":  # macOS
+                subprocess.run(["open", pdf_path], check=True)
+            else:  # Linux y otros Unix
+                subprocess.run(["xdg-open", pdf_path], check=True)
+
+        except subprocess.CalledProcessError as e:
+            messagebox.showerror("Error",
+                f"No se pudo abrir el archivo PDF.\n"
+                f"Puede abrirlo manualmente desde:\n{pdf_path}")
+        except Exception as e:
+            messagebox.showerror("Error",
+                f"Error al intentar abrir el PDF: {str(e)}\n"
+                f"Archivo ubicado en:\n{pdf_path}")
+
     def view_payment_details(self):
         """Ver detalles del pago seleccionado"""
         selected = self.tree.selection()
@@ -281,10 +318,13 @@ class PagosManager:
         try:
             db = get_db_session()
             pago = db.query(Pago).filter(Pago.numero_recibo == numero_recibo).first()
-            
+
             if pago:
+                # Cargar relaciones lazy-loaded antes de cerrar la sesión
+                _ = pago.venta.cliente.nombre_completo  # Forzar carga del cliente
+                _ = pago.venta.nicho.numero             # Forzar carga del nicho
                 PagoDetailsDialog(self.parent, pago)
-            
+
             db.close()
             
         except Exception as e:
@@ -317,7 +357,11 @@ class PagosManager:
             if not response:
                 db.close()
                 return
-            
+
+            # Cargar relaciones lazy-loaded antes de pasar el pago al diálogo
+            _ = pago.venta.cliente.nombre_completo  # Forzar carga del cliente
+            _ = pago.venta.nicho.numero             # Forzar carga del nicho
+
             dialog = PagoDialog(self.parent, "Editar Pago", pago)
             
             if dialog.result:
@@ -332,8 +376,9 @@ class PagosManager:
                 
                 # Recalcular saldo de la venta
                 venta = pago.venta
-                diferencia = dialog.result['monto'] - monto_anterior
-                venta.saldo_restante -= diferencia
+                # Hacer flush para que los cambios estén disponibles en la sesión
+                db.flush()
+                # Actualizar saldo (esto recalcula desde cero, no necesitamos la diferencia)
                 venta.actualizar_saldo()
                 
                 db.commit()
@@ -406,10 +451,13 @@ class PagosManager:
         try:
             db = get_db_session()
             pago = db.query(Pago).filter(Pago.numero_recibo == numero_recibo).first()
-            
+
             if pago:
+                # Cargar relaciones lazy-loaded antes de cerrar la sesión
+                _ = pago.venta.cliente.nombre_completo  # Forzar carga del cliente
+                _ = pago.venta.nicho.numero             # Forzar carga del nicho
                 self.generate_receipt_pdf(pago, pago.venta)
-            
+
             db.close()
             
         except Exception as e:
@@ -584,7 +632,8 @@ class PagoDialog:
     def __init__(self, parent, title, pago=None):
         self.result = None
         self.pago = pago
-        
+        self.venta_seleccionada = None  # Agregar atributo para la venta seleccionada
+
         # Crear ventana modal
         self.dialog = tk.Toplevel(parent)
         self.dialog.title(title)
@@ -592,26 +641,28 @@ class PagoDialog:
         self.dialog.resizable(False, False)
         self.dialog.transient(parent)
         self.dialog.grab_set()
-        
+
         # Variables
         self.numero_contrato_var = tk.StringVar()
         self.monto_var = tk.StringVar()
         self.metodo_pago_var = tk.StringVar(value="efectivo")
         self.concepto_var = tk.StringVar(value="Abono a cuenta")
         self.observaciones_var = tk.StringVar()
-        
+
         # Variables para mostrar información de la venta
         self.cliente_info_var = tk.StringVar()
         self.venta_info_var = tk.StringVar()
         self.saldo_info_var = tk.StringVar()
         
-        # Cargar datos si se está editando
+        # Crear widgets primero
+        self.create_widgets()
+
+        # Cargar datos si se está editando (después de crear widgets)
         if pago:
             self.load_pago_data()
-        
-        self.create_widgets()
+
         self.center_window()
-        
+
         # Esperar a que se cierre la ventana
         self.dialog.wait_window()
     
@@ -742,91 +793,135 @@ class PagoDialog:
         if dialog.result:
             # Cargar información de la venta seleccionada
             venta = dialog.result
+            self.venta_seleccionada = venta  # Almacenar la venta seleccionada
             self.numero_contrato_var.set(venta.numero_contrato)
             self.load_venta_info(venta)
-            
-            # Mostrar mensaje de confirmación
-            messagebox.showinfo("Venta Seleccionada", 
-                f"Venta seleccionada: {venta.cliente.nombre_completo}\n"
-                f"Contrato: {venta.numero_contrato}\n"
-                f"Saldo pendiente: ${venta.saldo_restante:,.2f}")
     
     def load_venta_info(self, venta=None):
         """Cargar información de la venta"""
-        if not venta and self.pago:
+        # Determinar qué venta usar
+        if venta:
+            # Se pasó una venta como parámetro (venta recién seleccionada)
+            self.venta_seleccionada = venta
+        elif self.pago:
+            # Se está editando un pago existente
             venta = self.pago.venta
-        
-        if not venta:
+            self.venta_seleccionada = venta
+        elif self.venta_seleccionada:
+            # Usar la venta ya seleccionada
+            venta = self.venta_seleccionada
+        elif self.numero_contrato_var.get().strip():
+            # Buscar la venta por número de contrato
+            try:
+                from database.models import get_db_session, Venta
+                db = get_db_session()
+                venta = db.query(Venta).filter(
+                    Venta.numero_contrato == self.numero_contrato_var.get().strip()
+                ).first()
+
+                if venta:
+                    # Cargar relaciones lazy-loaded antes de cerrar la sesión
+                    _ = venta.cliente.nombre_completo  # Forzar carga del cliente
+                    _ = venta.nicho.numero             # Forzar carga del nicho
+                    self.venta_seleccionada = venta
+                else:
+                    self.clear_venta_info()
+                    db.close()
+                    return
+
+                db.close()
+            except Exception as e:
+                print(f"Error al buscar venta: {e}")
+                self.clear_venta_info()
+                return
+        else:
+            # No hay venta disponible
+            self.clear_venta_info()
             return
-        
-        # Información del cliente
-        cliente_info = f"{venta.cliente.nombre_completo} - {venta.cliente.cedula}"
-        self.cliente_info_var.set(cliente_info)
-        
-        # Información de la venta
-        venta_info = f"Nicho {venta.nicho.numero} - ${venta.precio_total:,.2f} ({venta.tipo_pago})"
-        self.venta_info_var.set(venta_info)
-        
-        # Información del saldo
-        saldo_info = f"${venta.saldo_restante:,.2f}"
-        if venta.pagado_completamente:
-            saldo_info += " (PAGADO)"
-        self.saldo_info_var.set(saldo_info)
-        
-        # Calcular nuevo saldo automáticamente
-        self.calculate_new_saldo()
+
+        try:
+            # Información del cliente
+            cliente_info = f"{venta.cliente.nombre_completo} - {venta.cliente.cedula}"
+            self.cliente_info_var.set(cliente_info)
+
+            # Información de la venta
+            venta_info = f"Nicho {venta.nicho.numero} - ${venta.precio_total:,.2f} ({venta.tipo_pago})"
+            self.venta_info_var.set(venta_info)
+
+            # Información del saldo
+            saldo_info = f"${venta.saldo_restante:,.2f}"
+            if venta.pagado_completamente:
+                saldo_info += " (PAGADO)"
+            self.saldo_info_var.set(saldo_info)
+
+            # Calcular nuevo saldo automáticamente
+            self.calculate_new_saldo()
+
+        except Exception as e:
+            print(f"Error al cargar información de la venta: {e}")
+            self.clear_venta_info()
+            messagebox.showerror("Error", f"Error al cargar información de la venta: {e}")
     
     def clear_venta_info(self):
         """Limpiar información de la venta"""
         self.cliente_info_var.set("")
         self.venta_info_var.set("")
         self.saldo_info_var.set("")
-        self.nuevo_saldo_label.config(text="$0.00")
+        if hasattr(self, 'nuevo_saldo_label'):
+            self.nuevo_saldo_label.config(text="$0.00")
 
     def pagar_saldo_completo(self):
         """Llenar el monto con el saldo completo"""
-        saldo_text = self.saldo_info_var.get()
-        if saldo_text and "(" not in saldo_text:  # No está pagado
-            try:
-                # Extraer el valor numérico del saldo
-                saldo_limpio = saldo_text.replace("$", "").replace(",", "")
-                saldo_valor = float(saldo_limpio)
-                self.monto_var.set(str(saldo_valor))
-                self.calculate_new_saldo()
-            except ValueError:
-                messagebox.showwarning("Advertencia", "No se pudo determinar el saldo pendiente")
-        else:
+        if not self.venta_seleccionada:
+            messagebox.showwarning("Advertencia", "Debe seleccionar una venta primero")
+            return
+
+        if self.venta_seleccionada.pagado_completamente:
             messagebox.showinfo("Información", "Esta venta ya está pagada completamente")
+            return
+
+        try:
+            saldo_valor = float(self.venta_seleccionada.saldo_restante)
+            self.monto_var.set(str(saldo_valor))
+            self.calculate_new_saldo()
+        except ValueError:
+            messagebox.showwarning("Advertencia", "No se pudo determinar el saldo pendiente")
     
     def calculate_new_saldo(self, event=None):
         """Calcular nuevo saldo después del pago"""
         try:
-            # Obtener saldo actual
-            saldo_text = self.saldo_info_var.get()
-            if not saldo_text or "(" in saldo_text:
-                saldo_actual = 0
+            # Obtener saldo actual de la venta seleccionada
+            if self.venta_seleccionada:
+                saldo_actual = float(self.venta_seleccionada.saldo_restante)
             else:
-                saldo_actual = float(saldo_text.replace("$", "").replace(",", ""))
-            
+                # Fallback: obtener del texto mostrado
+                saldo_text = self.saldo_info_var.get()
+                if not saldo_text or "(" in saldo_text:
+                    saldo_actual = 0
+                else:
+                    saldo_actual = float(saldo_text.replace("$", "").replace(",", ""))
+
             # Obtener monto del pago
             monto_pago = float(self.monto_var.get() or 0)
-            
+
             # Calcular nuevo saldo
             nuevo_saldo = max(0, saldo_actual - monto_pago)
-            
-            # Actualizar etiqueta
-            self.nuevo_saldo_label.config(text=f"${nuevo_saldo:,.2f}")
-            
-            # Cambiar color según el resultado
-            if nuevo_saldo == 0:
-                self.nuevo_saldo_label.config(foreground="green")
-            elif monto_pago > saldo_actual:
-                self.nuevo_saldo_label.config(foreground="orange")
-            else:
-                self.nuevo_saldo_label.config(foreground="blue")
-            
+
+            # Actualizar etiqueta (verificar que existe)
+            if hasattr(self, 'nuevo_saldo_label'):
+                self.nuevo_saldo_label.config(text=f"${nuevo_saldo:,.2f}")
+
+                # Cambiar color según el resultado
+                if nuevo_saldo == 0:
+                    self.nuevo_saldo_label.config(foreground="green")
+                elif monto_pago > saldo_actual:
+                    self.nuevo_saldo_label.config(foreground="orange")
+                else:
+                    self.nuevo_saldo_label.config(foreground="blue")
+
         except ValueError:
-            self.nuevo_saldo_label.config(text="$0.00", foreground="gray")
+            if hasattr(self, 'nuevo_saldo_label'):
+                self.nuevo_saldo_label.config(text="$0.00", foreground="gray")
     
     def center_window(self):
         """Centrar ventana en la pantalla"""
@@ -841,10 +936,18 @@ class PagoDialog:
         if not self.numero_contrato_var.get().strip():
             messagebox.showerror("Error", "Debe seleccionar una venta primero")
             return
-        
-        # Validar información de la venta cargada
-        if not self.cliente_info_var.get():
-            messagebox.showerror("Error", "La información de la venta no está cargada correctamente")
+
+        # Validar que tengamos una venta seleccionada
+        if not self.venta_seleccionada:
+            # Intentar cargar la venta si no está disponible
+            self.load_venta_info()
+            if not self.venta_seleccionada:
+                messagebox.showerror("Error", "La información de la venta no está cargada correctamente")
+                return
+
+        # Validar información mínima necesaria
+        if not self.venta_seleccionada.cliente or not self.venta_seleccionada.nicho:
+            messagebox.showerror("Error", "La venta seleccionada no tiene información completa")
             return
         
         # Validar campos obligatorios
@@ -865,18 +968,17 @@ class PagoDialog:
             return
         
         # Validar que el monto no exceda el saldo pendiente (opcional - permitir sobrepagos)
-        try:
-            saldo_text = self.saldo_info_var.get()
-            if saldo_text and "(" not in saldo_text:
-                saldo_actual = float(saldo_text.replace("$", "").replace(",", ""))
+        if self.venta_seleccionada:
+            try:
+                saldo_actual = float(self.venta_seleccionada.saldo_restante)
                 if monto > saldo_actual * 1.1:  # Permitir 10% de margen
-                    response = messagebox.askyesno("Confirmación", 
+                    response = messagebox.askyesno("Confirmación",
                         f"El monto (${monto:,.2f}) excede el saldo pendiente (${saldo_actual:,.2f}).\n"
                         f"¿Desea continuar?")
                     if not response:
                         return
-        except ValueError:
-            pass  # Continuar si no se puede validar
+            except ValueError:
+                pass  # Continuar si no se puede validar
         
         # Obtener observaciones del Text widget
         observaciones = self.observaciones_text.get("1.0", tk.END).strip()
@@ -904,7 +1006,7 @@ class VentaSelectionDialog:
         # Crear ventana modal
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Seleccionar Venta para Pago")
-        self.dialog.geometry("800x500")
+        self.dialog.geometry("800x600")
         self.dialog.resizable(True, True)
         self.dialog.transient(parent)
         self.dialog.grab_set()
@@ -1155,13 +1257,16 @@ class VentaSelectionDialog:
         try:
             db = get_db_session()
             venta = db.query(Venta).filter(Venta.id == venta_id).first()
-            
+
             if venta:
+                # Cargar relaciones lazy-loaded antes de cerrar la sesión
+                _ = venta.cliente.nombre_completo  # Forzar carga del cliente
+                _ = venta.nicho.numero             # Forzar carga del nicho
                 self.result = venta
                 self.dialog.destroy()
             else:
                 messagebox.showerror("Error", "No se pudo cargar la venta seleccionada")
-            
+
             db.close()
             
         except Exception as e:
@@ -1297,15 +1402,46 @@ OBSERVACIONES
             )
             
             # Preguntar si desea abrir el PDF
-            response = messagebox.askyesno("PDF Generado", 
+            response = messagebox.askyesno("PDF Generado",
                 f"Recibo generado exitosamente:\n{pdf_path}\n\n¿Desea abrirlo ahora?")
-            
+
             if response:
-                os.startfile(pdf_path)  # Windows
+                self.open_pdf_file(pdf_path)
             
         except Exception as e:
             messagebox.showerror("Error", f"Error al generar recibo: {str(e)}")
-    
+
+    def open_pdf_file(self, pdf_path):
+        """Abrir archivo PDF de manera segura multiplataforma"""
+        import subprocess
+        import platform
+
+        try:
+            # Verificar que el archivo existe
+            if not os.path.exists(pdf_path):
+                messagebox.showerror("Error", f"El archivo no se encuentra:\n{pdf_path}")
+                return
+
+            # Detectar sistema operativo y usar el comando apropiado
+            system = platform.system()
+
+            if system == "Windows":
+                # Para Windows, usar subprocess con shell=True
+                subprocess.run(f'start "" "{pdf_path}"', shell=True, check=True)
+            elif system == "Darwin":  # macOS
+                subprocess.run(["open", pdf_path], check=True)
+            else:  # Linux y otros Unix
+                subprocess.run(["xdg-open", pdf_path], check=True)
+
+        except subprocess.CalledProcessError as e:
+            messagebox.showerror("Error",
+                f"No se pudo abrir el archivo PDF.\n"
+                f"Puede abrirlo manualmente desde:\n{pdf_path}")
+        except Exception as e:
+            messagebox.showerror("Error",
+                f"Error al intentar abrir el PDF: {str(e)}\n"
+                f"Archivo ubicado en:\n{pdf_path}")
+
     def center_window(self):
         """Centrar ventana en la pantalla"""
         self.dialog.update_idletasks()

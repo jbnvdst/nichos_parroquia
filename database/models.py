@@ -104,10 +104,34 @@ class Venta(Base):
     @property
     def total_pagado(self):
         return sum(pago.monto for pago in self.pagos) + self.enganche
-    
+
+    @property
+    def total_pagos_adicionales(self):
+        """Total de pagos adicionales (sin incluir enganche)"""
+        return sum(pago.monto for pago in self.pagos)
+
     def actualizar_saldo(self):
         """Actualizar saldo restante basado en los pagos realizados"""
-        self.saldo_restante = self.precio_total - self.total_pagado
+        # Obtener la sesión actual y consultar los pagos desde la base de datos
+        # para asegurar que incluya todos los pagos, incluso los recién agregados
+        from sqlalchemy.orm import object_session
+        from sqlalchemy import func
+
+        session = object_session(self)
+
+        if session:
+            # Consultar la suma total de pagos desde la base de datos
+            try:
+                total_pagos_db = session.query(func.sum(Pago.monto)).filter(Pago.venta_id == self.id).scalar() or 0
+            except:
+                # Fallback a usar la relación
+                total_pagos_db = self.total_pagos_adicionales
+        else:
+            # Fallback si no hay sesión
+            total_pagos_db = self.total_pagos_adicionales
+
+        # El saldo restante debe ser: precio_total - enganche - pagos_adicionales
+        self.saldo_restante = self.precio_total - self.enganche - total_pagos_db
         self.pagado_completamente = self.saldo_restante <= 0
 
 class Pago(Base):

@@ -1,0 +1,7 @@
+*.pdf
+/titulos
+/recibos
+/reports
+/backups
+test_saldo.py
+.claude/settings.local.json
