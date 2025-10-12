@@ -12,3 +12,6 @@ test_saldo.py
 *.pyc
 *.zip
 *.pkg
+/criptas_a_migrar
+database/__pycache__/__init__.cpython-311.pyc
+*.pyc
