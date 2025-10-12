@@ -614,25 +614,25 @@ class ReportesManager:
                 filename = filedialog.asksaveasfilename(
                     defaultextension=".pdf",
                     filetypes=[("PDF files", "*.pdf")],
-                    initialvalue=f"{default_filename}.pdf"
+                    initialfile=f"{default_filename}.pdf"
                 )
                 if filename:
                     self.export_to_pdf(filename)
-            
+
             elif formato == 'csv':
                 filename = filedialog.asksaveasfilename(
                     defaultextension=".csv",
                     filetypes=[("CSV files", "*.csv")],
-                    initialvalue=f"{default_filename}.csv"
+                    initialfile=f"{default_filename}.csv"
                 )
                 if filename:
                     self.export_to_csv(filename)
-            
+
             elif formato == 'excel':
                 filename = filedialog.asksaveasfilename(
                     defaultextension=".xlsx",
                     filetypes=[("Excel files", "*.xlsx")],
-                    initialvalue=f"{default_filename}.xlsx"
+                    initialfile=f"{default_filename}.xlsx"
                 )
                 if filename:
                     self.export_to_excel(filename)

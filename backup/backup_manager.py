@@ -29,6 +29,8 @@ class BackupManager:
             "max_backups": 10,
             "auto_backup_enabled": True,
             "backup_schedule": "weekly",
+            "backup_day": "saturday",
+            "backup_time": "12:00",
             "include_reports": True,
             "compression_level": 6
         }

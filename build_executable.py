@@ -13,11 +13,49 @@ class ExecutableBuilder:
         self.main_script = "main.py"
         self.icon_path = "assets/icon.ico"  # Si tienes un icono
         self.version = "1.0.0"
-        
+        self.version_file = "version_info.txt"
+
+    def create_version_file(self):
+        """Crear archivo de versión de Windows"""
+        version_content = f'''VSVersionInfo(
+  ffi=FixedFileInfo(
+    filevers=(1, 0, 0, 0),
+    prodvers=(1, 0, 0, 0),
+    mask=0x3f,
+    flags=0x0,
+    OS=0x40004,
+    fileType=0x1,
+    subtype=0x0,
+    date=(0, 0)
+  ),
+  kids=[
+    StringFileInfo(
+      [
+      StringTable(
+        u'040904B0',
+        [StringStruct(u'CompanyName', u'Parroquia Nuestra Señora del Consuelo de los Afligidos'),
+        StringStruct(u'FileDescription', u'Sistema de Administración de Criptas'),
+        StringStruct(u'FileVersion', u'{self.version}.0'),
+        StringStruct(u'InternalName', u'{self.app_name}'),
+        StringStruct(u'LegalCopyright', u'© 2024 Parroquia Nuestra Señora del Consuelo de los Afligidos'),
+        StringStruct(u'OriginalFilename', u'{self.app_name}.exe'),
+        StringStruct(u'ProductName', u'Sistema de Criptas'),
+        StringStruct(u'ProductVersion', u'{self.version}.0')])
+      ]),
+    VarFileInfo([VarStruct(u'Translation', [1033, 1200])])
+  ]
+)'''
+
+        with open(self.version_file, 'w', encoding='utf-8') as f:
+            f.write(version_content)
+
+        print(f"Archivo {self.version_file} creado")
+
     def create_spec_file(self):
         """Crear archivo .spec personalizado para PyInstaller"""
-        spec_content = f'''
-# -*- mode: python ; coding: utf-8 -*-
+        icon_param = f"icon='{self.icon_path}'" if os.path.exists(self.icon_path) else "icon=None"
+
+        spec_content = f'''# -*- mode: python ; coding: utf-8 -*-
 
 block_cipher = None
 
@@ -26,7 +64,6 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
-        ('assets', 'assets'),
         ('database', 'database'),
         ('ui', 'ui'),
         ('reports', 'reports'),
@@ -34,16 +71,28 @@ a = Analysis(
     ],
     hiddenimports=[
         'sqlalchemy.dialects.sqlite',
+        'sqlalchemy.pool',
+        'sqlalchemy.ext.declarative',
         'reportlab.pdfgen',
+        'reportlab.pdfgen.canvas',
         'reportlab.lib',
+        'reportlab.lib.pagesizes',
+        'reportlab.lib.units',
+        'reportlab.lib.colors',
+        'reportlab.platypus',
         'tkinter',
         'tkinter.ttk',
+        'tkinter.messagebox',
+        'tkinter.filedialog',
         'schedule',
+        'threading',
+        'json',
+        'pathlib',
     ],
     hookspath=[],
     hooksconfig={{}},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['pytest', 'test'],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
@@ -66,35 +115,38 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,  # Cambiar a True si necesitas consola para debug
+    console=False,
     disable_windowed_traceback=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='{self.icon_path if os.path.exists(self.icon_path) else None}',
+    {icon_param},
+    version='{self.version_file}',
 )
 '''
-        
+
         with open(f'{self.app_name}.spec', 'w', encoding='utf-8') as f:
             f.write(spec_content)
-        
+
         print(f"Archivo {self.app_name}.spec creado")
     
     def build_executable(self):
         """Construir el ejecutable"""
         print("Iniciando construcción del ejecutable...")
-        
+
         # Verificar que PyInstaller esté instalado
         try:
             import PyInstaller
         except ImportError:
             print("PyInstaller no está instalado. Instalando...")
             subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
-        
-        # Crear archivo .spec si no existe
-        if not os.path.exists(f'{self.app_name}.spec'):
-            self.create_spec_file()
-        
+
+        # Crear archivo de versión
+        self.create_version_file()
+
+        # Crear archivo .spec
+        self.create_spec_file()
+
         # Ejecutar PyInstaller
         cmd = [
             'pyinstaller',
@@ -102,17 +154,17 @@ exe = EXE(
             '--noconfirm',
             f'{self.app_name}.spec'
         ]
-        
+
         try:
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-            print("Construcción exitosa!")
-            print(f"Ejecutable creado en: dist/{self.app_name}.exe")
-            
+            print("✓ Construcción exitosa!")
+            print(f"✓ Ejecutable creado en: dist/{self.app_name}.exe")
+
             # Crear directorio de distribución
             self.create_distribution_package()
-            
+
         except subprocess.CalledProcessError as e:
-            print(f"Error durante la construcción: {e}")
+            print(f"✗ Error durante la construcción: {e}")
             print(f"Salida: {e.stdout}")
             print(f"Error: {e.stderr}")
     
@@ -173,7 +225,7 @@ Sistema completo para la administración de criptas en parroquias, que incluye:
 - Impresora (para generar recibos y títulos)
 
 ## Respaldos
-- Respaldos automáticos cada domingo a las 23:00
+- Respaldos automáticos cada sábado a las 12:00 PM
 - Respaldos manuales disponibles desde el menú
 - Los respaldos se guardan en la carpeta "backups"
 

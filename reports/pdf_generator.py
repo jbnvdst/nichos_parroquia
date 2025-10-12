@@ -19,11 +19,11 @@ class PDFGenerator:
         
         # Configuración de la parroquia (esto podría venir de la base de datos)
         self.parish_config = {
-            "nombre": "Parroquia San José",
-            "direccion": "Calle Principal #123, Ciudad",
-            "telefono": "+1 (555) 123-4567",
-            "email": "info@parroquiasanjose.org",
-            "logo_path": "assets/logo_parroquia.png"  # Si existe
+            "nombre": "Parroquia Nuestra Señora del Consuelo de los Afligidos",
+            "direccion": "Calle Girasoles #960, Zapopan, Jalisco",
+            "telefono": "3347345288",
+            "email": "parroquiaconsuelozap@hotmail.com",
+            "logo_path": "assets/logo_parroquia.webp"  # Si existe
         }
     
     def setup_custom_styles(self):
@@ -32,7 +32,7 @@ class PDFGenerator:
         self.styles.add(ParagraphStyle(
             name='CustomTitle',
             parent=self.styles['Title'],
-            fontSize=18,
+            fontSize=16,
             spaceAfter=30,
             alignment=TA_CENTER,
             textColor=colors.darkblue
@@ -79,14 +79,17 @@ class PDFGenerator:
         if not output_path:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_path = f"recibos/recibo_{pago_data['numero_recibo']}_{timestamp}.pdf"
-        
+
+        # Convertir a ruta absoluta
+        output_path = os.path.abspath(output_path)
+
         # Crear directorio si no existe
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         
         # Crear documento
         doc = SimpleDocTemplate(output_path, pagesize=letter,
-                              rightMargin=50, leftMargin=50,
-                              topMargin=50, bottomMargin=18)
+                              rightMargin=25, leftMargin=25,
+                              topMargin=25, bottomMargin=18)
         
         # Contenido del documento
         story = []
@@ -209,14 +212,17 @@ class PDFGenerator:
         if not output_path:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_path = f"titulos/titulo_{venta_data['numero_contrato']}_{timestamp}.pdf"
-        
+
+        # Convertir a ruta absoluta
+        output_path = os.path.abspath(output_path)
+
         # Crear directorio si no existe
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         
         # Crear documento
-        doc = SimpleDocTemplate(output_path, pagesize=A4,
-                              rightMargin=72, leftMargin=72,
-                              topMargin=72, bottomMargin=72)
+        doc = SimpleDocTemplate(output_path, pagesize=letter,
+                              rightMargin=25, leftMargin=25,
+                              topMargin=25, bottomMargin=25)
         
         # Contenido del documento
         story = []
@@ -227,7 +233,7 @@ class PDFGenerator:
         # Título del documento
         story.append(Paragraph("TÍTULO DE PROPIEDAD", self.styles['CustomTitle']))
         story.append(Paragraph("CRIPTA FAMILIAR", self.styles['CustomSubtitle']))
-        story.append(Spacer(1, 30))
+        story.append(Spacer(1, 10))
         
         # Texto legal del título
         texto_legal = f"""
@@ -236,11 +242,11 @@ class PDFGenerator:
         ciudadanía número <b>{cliente_data['cedula']}</b>, ha adquirido en plena propiedad 
         el derecho de uso y goce del nicho número <b>{nicho_data['numero']}</b>, ubicado en 
         la sección <b>{nicho_data['seccion']}</b>, fila <b>{nicho_data['fila']}</b>, 
-        columna <b>{nicho_data['columna']}</b> del cementerio de esta parroquia.
+        columna <b>{nicho_data['columna']}</b> de las criptas de esta parroquia.
         """
         
         story.append(Paragraph(texto_legal, self.styles['InfoText']))
-        story.append(Spacer(1, 20))
+        story.append(Spacer(1, 10))
         
         # Información del contrato
         contrato_info = [
@@ -259,7 +265,7 @@ class PDFGenerator:
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ]))
         story.append(tabla_contrato)
-        story.append(Spacer(1, 30))
+        story.append(Spacer(1, 10))
         
         # Beneficiarios si existen
         if beneficiarios_data:
@@ -273,20 +279,19 @@ class PDFGenerator:
                 beneficiario_texto = f"<b>{i}. {beneficiario['nombre']} {beneficiario['apellido']}</b> - Cédula: {beneficiario['cedula']}"
                 story.append(Paragraph(beneficiario_texto, self.styles['InfoText']))
             
-            story.append(Spacer(1, 20))
+            story.append(Spacer(1, 10))
         
         # Condiciones y términos
         condiciones_texto = """
         <b>CONDICIONES Y TÉRMINOS:</b><br/>
         1. Este título otorga el derecho de uso y goce del nicho mencionado a perpetuidad.<br/>
-        2. El titular se compromete a respetar las normas del cementerio y la parroquia.<br/>
-        3. Cualquier modificación o transferencia debe ser autorizada por la administración.<br/>
+        2. El titular se compromete a respetar las normas del espacio de criptas y la parroquia.<br/>
+        3. El nicho es intransferible.<br/>
         4. El nicho debe ser utilizado únicamente para los fines establecidos.<br/>
-        5. La parroquia se reserva el derecho de supervisar el mantenimiento del nicho.
         """
         
         story.append(Paragraph(condiciones_texto, self.styles['InfoText']))
-        story.append(Spacer(1, 40))
+        story.append(Spacer(1, 10))
         
         # Firmas
         story.extend(self._crear_pie_firmas_titulo())
@@ -322,7 +327,7 @@ class PDFGenerator:
             ('FONTSIZE', (0, 0), (-1, -1), 12),
         ]))
         elementos.append(line_table)
-        elementos.append(Spacer(1, 20))
+        elementos.append(Spacer(1, 10))
         
         return elementos
     
@@ -330,7 +335,7 @@ class PDFGenerator:
         """Crear pie de página con firmas para recibos"""
         elementos = []
         
-        elementos.append(Spacer(1, 40))
+        elementos.append(Spacer(1, 10))
         
         # Fecha y hora de emisión
         fecha_emision = datetime.now().strftime("Emitido el %d de %B de %Y a las %H:%M")
@@ -358,18 +363,18 @@ class PDFGenerator:
         """Crear pie de página con firmas para títulos"""
         elementos = []
         
-        elementos.append(Spacer(1, 40))
+        elementos.append(Spacer(1, 10))
         
         # Fecha de expedición
-        fecha_expedicion = datetime.now().strftime("Expedido en la ciudad el %d de %B de %Y")
+        fecha_expedicion = datetime.now().strftime("Expedido en Zapopan, Jalisco el %d de %B de %Y")
         elementos.append(Paragraph(fecha_expedicion, self.styles['CenteredText']))
-        elementos.append(Spacer(1, 50))
+        elementos.append(Spacer(1, 40))
         
         # Líneas de firma
         firmas_data = [
             ['_' * 30, '_' * 30],
-            ['Párroco', 'Administrador'],
-            ['Firma y Sello', 'Firma y Sello']
+            ['Párroco', 'Dueño del nicho'],
+            ['Firma y Sello', 'Firma y Nombre']
         ]
         
         tabla_firmas = Table(firmas_data, colWidths=[3*inch, 3*inch])
@@ -387,45 +392,49 @@ class PDFGenerator:
         if not output_path:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_path = f"reportes/reporte_movimientos_{timestamp}.pdf"
-        
+
         # Crear directorio si no existe
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        
+
         # Crear documento
-        doc = SimpleDocTemplate(output_path, pagesize=A4,
-                              rightMargin=50, leftMargin=50,
-                              topMargin=50, bottomMargin=50)
-        
+        doc = SimpleDocTemplate(output_path, pagesize=letter,
+                              rightMargin=25, leftMargin=25,
+                              topMargin=25, bottomMargin=25)
+
         story = []
-        
+
         # Encabezado
         story.extend(self._crear_encabezado_parroquia())
-        
+
         # Título
         story.append(Paragraph("REPORTE DE MOVIMIENTOS", self.styles['CustomTitle']))
-        periodo = f"Período: {fecha_inicio.strftime('%d/%m/%Y')} - {fecha_fin.strftime('%d/%m/%Y')}"
+        # Formatear fechas solo si son objetos date/datetime
+        fecha_inicio_str = fecha_inicio.strftime('%d/%m/%Y') if hasattr(fecha_inicio, 'strftime') else str(fecha_inicio)
+        fecha_fin_str = fecha_fin.strftime('%d/%m/%Y') if hasattr(fecha_fin, 'strftime') else str(fecha_fin)
+        periodo = f"Período: {fecha_inicio_str} - {fecha_fin_str}"
         story.append(Paragraph(periodo, self.styles['CustomSubtitle']))
         story.append(Spacer(1, 30))
-        
+
         # Tabla de movimientos
         if movimientos_data:
-            # Encabezados de la tabla
-            headers = ['Fecha', 'Tipo', 'Contrato', 'Cliente', 'Monto', 'Estado']
-            data = [headers]
-            
+            # Encabezados de la tabla - usar las claves del primer registro
+            first_item = movimientos_data[0]
+            headers = list(first_item.keys())
+
+            # Crear tabla con encabezados formateados
+            tabla_data = [[h.replace('_', ' ').title() for h in headers]]
+
             # Agregar datos
             for mov in movimientos_data:
-                data.append([
-                    mov['fecha'].strftime('%d/%m/%Y'),
-                    mov['tipo'],
-                    mov['contrato'],
-                    mov['cliente'],
-                    f"${mov['monto']:,.2f}",
-                    mov['estado']
-                ])
-            
+                row = [str(mov.get(key, '')) for key in headers]
+                tabla_data.append(row)
+
+            # Calcular anchos de columnas dinámicamente
+            num_cols = len(headers)
+            col_width = 6.5 * inch / num_cols
+
             # Crear tabla
-            tabla = Table(data, colWidths=[1*inch, 1*inch, 1.2*inch, 2*inch, 1*inch, 1*inch])
+            tabla = Table(tabla_data, colWidths=[col_width] * num_cols)
             tabla.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -439,9 +448,9 @@ class PDFGenerator:
             ]))
             story.append(tabla)
         else:
-            story.append(Paragraph("No se encontraron movimientos en el período seleccionado.", 
+            story.append(Paragraph("No se encontraron movimientos en el período seleccionado.",
                                  self.styles['InfoText']))
-        
+
         # Generar PDF
         doc.build(story)
         return output_path

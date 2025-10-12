@@ -71,8 +71,8 @@ class CriptasApp:
     
     def setup_auto_backup(self):
         """Configurar respaldos automáticos semanales"""
-        # Programar respaldo cada domingo a las 23:00
-        schedule.every().sunday.at("23:00").do(self.backup_manager.create_backup)
+        # Programar respaldo cada sábado a las 12:00 PM
+        schedule.every().saturday.at("12:00").do(self.backup_manager.create_backup)
         
         # Ejecutar scheduler en un hilo separado
         def run_scheduler():

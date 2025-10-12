@@ -16,14 +16,19 @@ from ui.reportes_manager import ReportesManager
 from ui.busqueda_manager import BusquedaManager
 from ui.titulos_manager import TitulosManager
 from backup.backup_manager import BackupManager
+from backup.scheduler import BackupScheduler
 
 class MainWindow:
     def __init__(self, root):
         self.root = root
         self.backup_manager = BackupManager()
+        self.backup_scheduler = BackupScheduler()
         
         # Crear la interfaz principal
         self.create_main_interface()
+
+        # Iniciar el programador de respaldos automáticos
+        self.backup_scheduler.start_scheduler()
         
         # Inicializar managers
         self.init_managers()
@@ -39,6 +44,9 @@ class MainWindow:
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
         main_frame.rowconfigure(1, weight=1)
+
+        # Configurar el protocolo de cierre de ventana
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         
         # Inicializar variables de estado primero
         self.status_var = tk.StringVar()
@@ -260,26 +268,88 @@ class MainWindow:
         """Mostrar gestión de respaldos"""
         self.clear_content()
         self.update_status("Gestión de Respaldos")
-        
+
         backup_frame = ttk.LabelFrame(self.content_frame, text="Gestión de Respaldos", padding="20")
         backup_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        
+
+        # Obtener información del horario actual
+        schedule_info = self.backup_scheduler.get_schedule_info()
+
+        # Traducción de días al español
+        days_translation = {
+            'monday': 'Lunes',
+            'tuesday': 'Martes',
+            'wednesday': 'Miércoles',
+            'thursday': 'Jueves',
+            'friday': 'Viernes',
+            'saturday': 'Sábado',
+            'sunday': 'Domingo'
+        }
+
+        current_day_spanish = days_translation.get(schedule_info['day'], 'Sábado')
+
         # Información de respaldos
-        info_label = ttk.Label(backup_frame, 
-                              text="Los respaldos automáticos se realizan cada domingo a las 23:00\n"
+        info_label = ttk.Label(backup_frame,
+                              text=f"Los respaldos automáticos se realizan cada {current_day_spanish} a las {schedule_info['time']}\n"
                                    "También puedes crear respaldos manuales cuando lo necesites.",
                               font=("Arial", 11))
-        info_label.grid(row=0, column=0, columnspan=2, pady=(0, 20))
-        
+        info_label.grid(row=0, column=0, columnspan=3, pady=(0, 20))
+
+        # Sección de configuración de horario
+        config_frame = ttk.LabelFrame(backup_frame, text="Configuración de Respaldos Automáticos", padding="15")
+        config_frame.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 20))
+
+        # Día de la semana
+        ttk.Label(config_frame, text="Día de la semana:", font=("Arial", 10)).grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+
+        self.backup_day_var = tk.StringVar(value=schedule_info['day'])
+        days_options = [
+            ('Lunes', 'monday'),
+            ('Martes', 'tuesday'),
+            ('Miércoles', 'wednesday'),
+            ('Jueves', 'thursday'),
+            ('Viernes', 'friday'),
+            ('Sábado', 'saturday'),
+            ('Domingo', 'sunday')
+        ]
+
+        day_combo = ttk.Combobox(config_frame, textvariable=self.backup_day_var,
+                                 values=[day[1] for day in days_options],
+                                 state='readonly', width=15)
+        day_combo.grid(row=0, column=1, padx=5, pady=5)
+
+        # Hora
+        ttk.Label(config_frame, text="Hora (HH:MM):", font=("Arial", 10)).grid(row=0, column=2, sticky=tk.W, padx=5, pady=5)
+
+        self.backup_time_var = tk.StringVar(value=schedule_info['time'])
+        time_entry = ttk.Entry(config_frame, textvariable=self.backup_time_var, width=10)
+        time_entry.grid(row=0, column=3, padx=5, pady=5)
+
+        # Botón para guardar configuración
+        save_schedule_btn = ttk.Button(config_frame, text="Guardar Horario",
+                                      command=self.save_backup_schedule, style='Custom.TButton')
+        save_schedule_btn.grid(row=0, column=4, padx=10, pady=5)
+
+        # Próximo respaldo programado
+        if schedule_info['next_run']:
+            next_run_str = schedule_info['next_run'].strftime("%d/%m/%Y %H:%M")
+            next_run_label = ttk.Label(config_frame,
+                                      text=f"Próximo respaldo: {next_run_str}",
+                                      font=("Arial", 9, "italic"))
+            next_run_label.grid(row=1, column=0, columnspan=5, pady=(10, 0))
+
         # Botones de respaldo
-        manual_backup_btn = ttk.Button(backup_frame, text="Crear Respaldo Manual",
+        buttons_frame = ttk.Frame(backup_frame)
+        buttons_frame.grid(row=2, column=0, columnspan=3, pady=10)
+
+        manual_backup_btn = ttk.Button(buttons_frame, text="Crear Respaldo Manual",
                                      command=self.create_manual_backup, style='Custom.TButton')
-        manual_backup_btn.grid(row=1, column=0, padx=10, pady=10)
-        
-        restore_backup_btn = ttk.Button(backup_frame, text="Restaurar desde Respaldo",
+        manual_backup_btn.grid(row=0, column=0, padx=10, pady=10)
+
+        restore_backup_btn = ttk.Button(buttons_frame, text="Restaurar desde Respaldo",
                                       command=self.restore_backup, style='Custom.TButton')
-        restore_backup_btn.grid(row=1, column=1, padx=10, pady=10)
-        
+        restore_backup_btn.grid(row=0, column=1, padx=10, pady=10)
+
         # Lista de respaldos existentes
         self.load_backup_list(backup_frame)
     
@@ -297,7 +367,7 @@ class MainWindow:
         
         # Configuración de la parroquia
         ttk.Label(config_frame, text="Nombre de la Parroquia:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.parish_name_var = tk.StringVar(value="Parroquia San José")
+        self.parish_name_var = tk.StringVar(value="Parroquia Nuestra Señora del Consuelo de los Afligidos")
         parish_entry = ttk.Entry(config_frame, textvariable=self.parish_name_var, width=30)
         parish_entry.grid(row=1, column=1, sticky=tk.W, pady=5)
         
@@ -327,6 +397,50 @@ class MainWindow:
     def quick_print_title(self):
         self.show_titulos()
     
+    def save_backup_schedule(self):
+        """Guardar configuración de horario de respaldos"""
+        import re
+
+        day = self.backup_day_var.get()
+        time_str = self.backup_time_var.get()
+
+        # Validar formato de hora (HH:MM)
+        time_pattern = re.compile(r'^([0-1][0-9]|2[0-3]):([0-5][0-9])$')
+        if not time_pattern.match(time_str):
+            messagebox.showerror("Error", "Formato de hora inválido. Use HH:MM (ejemplo: 14:30)")
+            return
+
+        # Validar que el día sea válido
+        valid_days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+        if day not in valid_days:
+            messagebox.showerror("Error", "Día de la semana inválido")
+            return
+
+        try:
+            # Actualizar el horario
+            self.backup_scheduler.update_schedule(day, time_str)
+
+            # Traducción del día al español para el mensaje
+            days_translation = {
+                'monday': 'Lunes',
+                'tuesday': 'Martes',
+                'wednesday': 'Miércoles',
+                'thursday': 'Jueves',
+                'friday': 'Viernes',
+                'saturday': 'Sábado',
+                'sunday': 'Domingo'
+            }
+            day_spanish = days_translation.get(day, day)
+
+            messagebox.showinfo("Éxito", f"Horario de respaldos actualizado:\n{day_spanish} a las {time_str}")
+            self.update_status("Horario de respaldos actualizado")
+
+            # Refrescar la vista de respaldos para mostrar el nuevo horario
+            self.show_respaldos()
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al actualizar horario: {str(e)}")
+
     def create_manual_backup(self):
         """Crear respaldo manual"""
         try:
@@ -354,20 +468,53 @@ class MainWindow:
     
     def load_backup_list(self, parent):
         """Cargar lista de respaldos existentes"""
-        list_frame = ttk.LabelFrame(parent, text="Respaldos Existentes", padding="10")
-        list_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(20, 0))
-        
-        # Lista de archivos de respaldo
+        list_frame = ttk.LabelFrame(parent, text="Estado de Respaldos", padding="10")
+        list_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(20, 0))
+
+        # Obtener información de respaldos
         backup_files = self.backup_manager.list_backups()
-        
+
         if backup_files:
-            for i, backup_file in enumerate(backup_files[:5]):  # Mostrar solo los últimos 5
-                ttk.Label(list_frame, text=backup_file).grid(row=i, column=0, sticky=tk.W, pady=2)
+            # Mostrar solo el último backup
+            last_backup = backup_files[0]  # Ya están ordenados por fecha (más reciente primero)
+
+            # Información del último backup
+            last_backup_info = f"Último respaldo: {last_backup['created'].strftime('%d/%m/%Y a las %H:%M')}"
+            ttk.Label(list_frame, text=last_backup_info, font=("Arial", 10, "bold")).grid(row=0, column=0, sticky=tk.W, pady=5)
+
+            # Información adicional
+            file_size_mb = round(last_backup['size'] / (1024 * 1024), 2)
+            size_info = f"Tamaño: {file_size_mb} MB"
+            ttk.Label(list_frame, text=size_info).grid(row=1, column=0, sticky=tk.W, pady=2)
+
+            total_backups_info = f"Total de respaldos: {len(backup_files)}"
+            ttk.Label(list_frame, text=total_backups_info).grid(row=2, column=0, sticky=tk.W, pady=2)
+
+            # Información del próximo respaldo automático
+            next_backup_time = self.backup_scheduler.get_next_backup_time()
+            if next_backup_time:
+                next_backup_info = f"Próximo respaldo automático: {next_backup_time.strftime('%d/%m/%Y a las %H:%M')}"
+                ttk.Label(list_frame, text=next_backup_info, font=("Arial", 9, "italic")).grid(row=3, column=0, sticky=tk.W, pady=5)
+
         else:
-            ttk.Label(list_frame, text="No hay respaldos disponibles").grid(row=0, column=0, pady=10)
+            ttk.Label(list_frame, text="No hay respaldos disponibles",
+                     font=("Arial", 10)).grid(row=0, column=0, pady=10)
     
     def save_configuration(self):
         """Guardar configuración"""
         # Aquí implementarías el guardado de configuración
         messagebox.showinfo("Éxito", "Configuración guardada exitosamente")
         self.update_status("Configuración guardada")
+
+    def on_closing(self):
+        """Manejar el cierre de la aplicación"""
+        try:
+            # Detener el programador de respaldos
+            if hasattr(self, 'backup_scheduler'):
+                self.backup_scheduler.stop_scheduler()
+
+            # Cerrar la ventana
+            self.root.destroy()
+        except Exception as e:
+            print(f"Error al cerrar la aplicación: {e}")
+            self.root.destroy()

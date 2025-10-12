@@ -6,6 +6,7 @@ Interfaz para la gestión de títulos de propiedad
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import os
+import glob
 from datetime import datetime
 from database.models import get_db_session, Venta, Cliente, Nicho, Beneficiario
 from reports.pdf_generator import PDFGenerator
@@ -147,8 +148,14 @@ class TitulosManager:
                 num_beneficiarios = len(venta.beneficiarios)
                 beneficiarios_text = f"{num_beneficiarios} registrados" if num_beneficiarios > 0 else "Sin beneficiarios"
                 
-                # Verificar si ya se generó título (esto se podría guardar en una tabla separada)
-                titulo_generado = "No" if not venta.pagado_completamente else "Listo"
+                # Verificar si ya se generó título
+                existing_title = self.find_existing_title(venta.numero_contrato)
+                if existing_title and os.path.exists(existing_title):
+                    titulo_generado = "Generado"
+                elif venta.pagado_completamente:
+                    titulo_generado = "Listo"
+                else:
+                    titulo_generado = "Pendiente"
                 
                 values = (
                     venta.numero_contrato,
@@ -217,6 +224,27 @@ class TitulosManager:
         except Exception as e:
             messagebox.showerror("Error", f"Error al generar título: {str(e)}")
     
+    def find_existing_title(self, numero_contrato):
+        """Buscar títulos existentes para un contrato"""
+        try:
+            # Crear directorio si no existe
+            titulos_dir = os.path.abspath("titulos")
+            os.makedirs(titulos_dir, exist_ok=True)
+
+            # Buscar archivos con el patrón titulo_{numero_contrato}_*.pdf
+            pattern = os.path.join(titulos_dir, f"titulo_{numero_contrato}_*.pdf")
+            existing_files = glob.glob(pattern)
+
+            if existing_files:
+                # Retornar el archivo más reciente (ruta absoluta)
+                return max(existing_files, key=os.path.getctime)
+
+            return None
+
+        except Exception as e:
+            print(f"Error buscando título existente: {str(e)}")
+            return None
+
     def create_title_pdf(self, venta):
         """Crear PDF del título de propiedad"""
         try:
@@ -267,13 +295,22 @@ class TitulosManager:
             pdf_path = self.pdf_generator.generar_titulo_propiedad(
                 venta_data, cliente_data, nicho_data, beneficiarios_data
             )
-            
+
+            # Convertir a ruta absoluta y verificar que existe
+            absolute_pdf_path = os.path.abspath(pdf_path)
+
             # Preguntar si desea abrir el PDF
-            response = messagebox.askyesno("Título Generado", 
-                f"Título de propiedad generado exitosamente:\n{pdf_path}\n\n¿Desea abrirlo ahora?")
-            
+            response = messagebox.askyesno("Título Generado",
+                f"Título de propiedad generado exitosamente:\n{os.path.basename(pdf_path)}\n\n¿Desea abrirlo ahora?")
+
             if response:
-                os.startfile(pdf_path)  # Windows
+                if os.path.exists(absolute_pdf_path):
+                    try:
+                        os.startfile(absolute_pdf_path)  # Windows
+                    except Exception as open_error:
+                        messagebox.showerror("Error", f"Error al abrir el archivo: {str(open_error)}")
+                else:
+                    messagebox.showerror("Error", f"No se puede encontrar el archivo generado: {absolute_pdf_path}")
             
             self.update_status("Título de propiedad generado exitosamente")
             
@@ -286,16 +323,28 @@ class TitulosManager:
         if not selected:
             messagebox.showwarning("Advertencia", "Seleccione una venta para ver el título")
             return
-        
+
         item = self.tree.item(selected[0])
         numero_contrato = item['values'][0]
-        
+
         # Buscar archivo de título existente
-        titulo_path = f"titulos/titulo_{numero_contrato}*.pdf"
-        
-        # Aquí podrías implementar la búsqueda de archivos existentes
-        # Por ahora, generar una vista previa
-        self.generate_title()
+        existing_title = self.find_existing_title(numero_contrato)
+
+        if existing_title and os.path.exists(existing_title):
+            # Abrir título existente
+            try:
+                os.startfile(existing_title)  # Windows
+                self.update_status(f"Abriendo título existente: {os.path.basename(existing_title)}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Error al abrir título: {str(e)}")
+        else:
+            # No existe, preguntar si desea generar uno nuevo
+            response = messagebox.askyesno("Título no encontrado",
+                "No se encontró un título existente para este contrato.\n"
+                "¿Desea generar un nuevo título?")
+
+            if response:
+                self.generate_title()
     
     def print_title(self):
         """Imprimir título de propiedad"""
@@ -303,19 +352,36 @@ class TitulosManager:
         if not selected:
             messagebox.showwarning("Advertencia", "Seleccione una venta para imprimir el título")
             return
-        
+
         item = self.tree.item(selected[0])
+        numero_contrato = item['values'][0]
         estado_pago = item['values'][5]
-        
+
         if estado_pago != "Pagado":
-            response = messagebox.askyesno("Confirmación", 
+            response = messagebox.askyesno("Confirmación",
                 "Esta venta no está pagada completamente.\n"
                 "¿Está seguro de que desea imprimir el título?")
             if not response:
                 return
-        
-        # Generar y abrir para imprimir
-        self.generate_title()
+
+        # Buscar archivo de título existente
+        existing_title = self.find_existing_title(numero_contrato)
+
+        if existing_title and os.path.exists(existing_title):
+            # Abrir título existente para imprimir
+            try:
+                os.startfile(existing_title)  # Windows
+                self.update_status(f"Abriendo título para imprimir: {os.path.basename(existing_title)}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Error al abrir título: {str(e)}")
+        else:
+            # No existe, preguntar si desea generar uno nuevo
+            response = messagebox.askyesno("Título no encontrado",
+                "No se encontró un título existente para este contrato.\n"
+                "¿Desea generar un nuevo título para imprimir?")
+
+            if response:
+                self.generate_title()
     
     def batch_titles(self):
         """Generar títulos en lote"""
@@ -422,7 +488,14 @@ class TitulosManager:
                 num_beneficiarios = len(venta.beneficiarios)
                 beneficiarios_text = f"{num_beneficiarios} registrados" if num_beneficiarios > 0 else "Sin beneficiarios"
                 
-                titulo_generado = "No" if not venta.pagado_completamente else "Listo"
+                # Verificar si ya se generó título
+                existing_title = self.find_existing_title(venta.numero_contrato)
+                if existing_title and os.path.exists(existing_title):
+                    titulo_generado = "Generado"
+                elif venta.pagado_completamente:
+                    titulo_generado = "Listo"
+                else:
+                    titulo_generado = "Pendiente"
                 
                 values = (
                     venta.numero_contrato,
@@ -488,7 +561,14 @@ class TitulosManager:
                 num_beneficiarios = len(venta.beneficiarios)
                 beneficiarios_text = f"{num_beneficiarios} registrados" if num_beneficiarios > 0 else "Sin beneficiarios"
                 
-                titulo_generado = "No" if not venta.pagado_completamente else "Listo"
+                # Verificar si ya se generó título
+                existing_title = self.find_existing_title(venta.numero_contrato)
+                if existing_title and os.path.exists(existing_title):
+                    titulo_generado = "Generado"
+                elif venta.pagado_completamente:
+                    titulo_generado = "Listo"
+                else:
+                    titulo_generado = "Pendiente"
                 
                 values = (
                     venta.numero_contrato,

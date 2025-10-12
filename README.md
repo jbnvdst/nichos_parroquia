@@ -67,42 +67,58 @@ Sistema completo desarrollado en Python para la administración de criptas en pa
 
 ## 📦 Instalación
 
-### Requisitos del Sistema
-- Windows 10 o superior
-- 4GB RAM mínimo
-- 500MB espacio libre en disco
-- Impresora (para recibos y títulos)
+### 🎯 Para Usuarios Finales (Windows)
 
-### Instalación desde Código Fuente
+#### Opción 1: Instalador (Recomendado)
+1. Descarga `SistemaCriptas_Setup_v1.0.0.exe` desde [Releases](../../releases)
+2. Ejecuta el instalador
+3. Sigue el asistente de instalación
+4. ¡Listo! Usa el acceso directo en tu escritorio
+
+#### Opción 2: Versión Portable (Sin instalación)
+1. Descarga `SistemaCriptas_Portable_v1.0.0.zip`
+2. Descomprime en cualquier carpeta
+3. Ejecuta `SistemaCriptas.exe`
+
+### 💻 Para Desarrolladores
+
+#### Ejecutar desde Código Fuente
 
 1. **Clonar el repositorio**
    ```bash
-   git clone https://github.com/tu-usuario/sistema-criptas.git
-   cd sistema-criptas
+   git clone https://github.com/tu-usuario/nichos_parroquia.git
+   cd nichos_parroquia
    ```
 
-2. **Crear entorno virtual**
-   ```bash
-   python -m venv venv
-   venv\Scripts\activate  # Windows
-   # source venv/bin/activate  # Linux/Mac
-   ```
-
-3. **Instalar dependencias**
+2. **Instalar dependencias**
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Ejecutar la aplicación**
+3. **Ejecutar la aplicación**
    ```bash
    python main.py
    ```
 
-### Instalación desde Ejecutable
+#### Crear Instalador de Windows
 
-1. Descargar el archivo `.zip` de la release más reciente
-2. Extraer todos los archivos en una carpeta
-3. Ejecutar `SistemaCriptas.exe`
+**Método rápido (todo en uno):**
+```bash
+python create_installer.py
+```
+
+**Solo el ejecutable:**
+```bash
+python build_executable.py
+```
+
+Ver [GUIA_INSTALADOR.md](GUIA_INSTALADOR.md) para instrucciones detalladas.
+
+### Requisitos del Sistema
+- Windows 10 o superior
+- 4GB RAM mínimo
+- 500MB espacio libre en disco
+- Impresora (opcional, para recibos y títulos)
 
 ## 🚀 Uso del Sistema
 
@@ -197,7 +213,7 @@ sistema-criptas/
 ```json
 {
   "parroquia": {
-    "nombre": "Parroquia San José",
+    "nombre": "Parroquia Nuestra Señora del Consuelo de los Afligidos",
     "direccion": "Calle Principal #123",
     "telefono": "+1 (555) 123-4567",
     "email": "info@parroquia.org",
@@ -238,7 +254,7 @@ sistema-criptas/
 ## 🔒 Respaldos y Seguridad
 
 ### Respaldos Automáticos
-- Se ejecutan automáticamente cada domingo a las 23:00
+- Se ejecutan automáticamente cada sábado a las 12:00 PM
 - Incluyen base de datos, configuración y archivos generados
 - Se mantienen las últimas 10 copias por defecto
 - Compresión automática para ahorrar espacio

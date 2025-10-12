@@ -5,3 +5,10 @@
 /backups
 test_saldo.py
 .claude/settings.local.json
+*.txt
+*.pyc
+*.toc
+*.pyz
+*.pyc
+*.zip
+*.pkg
