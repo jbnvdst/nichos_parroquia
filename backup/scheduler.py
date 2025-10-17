@@ -79,7 +79,7 @@ class BackupScheduler:
         schedule.clear()
 
         if self.scheduler_thread and self.scheduler_thread.is_alive():
-            self.scheduler_thread.join(timeout=1)
+            self.scheduler_thread.join(timeout=0.5)
 
 
     def _run_scheduler(self):

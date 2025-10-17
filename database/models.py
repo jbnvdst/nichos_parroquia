@@ -59,13 +59,13 @@ class Cliente(Base):
 
 class Nicho(Base):
     __tablename__ = "nichos"
-    
+
     id: Mapped[int] = mapped_column(primary_key=True)
     numero: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
     seccion: Mapped[str] = mapped_column(String(50), nullable=False)
     fila: Mapped[str] = mapped_column(String(10), nullable=False)
     columna: Mapped[str] = mapped_column(String(10), nullable=False)
-    precio: Mapped[float] = mapped_column(Float, nullable=False)
+    precio: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     disponible: Mapped[bool] = mapped_column(Boolean, default=True)
     descripcion: Mapped[Optional[str]] = mapped_column(Text)
     fecha_creacion: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
@@ -78,7 +78,7 @@ class Nicho(Base):
 
 class Venta(Base):
     __tablename__ = "ventas"
-    
+
     id: Mapped[int] = mapped_column(primary_key=True)
     numero_contrato: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     cliente_id: Mapped[int] = mapped_column(ForeignKey("clientes.id"), nullable=False)
@@ -90,6 +90,7 @@ class Venta(Base):
     pagado_completamente: Mapped[bool] = mapped_column(Boolean, default=False)
     fecha_venta: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     fecha_ultimo_pago: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    familia: Mapped[Optional[str]] = mapped_column(String(100))
     observaciones: Mapped[Optional[str]] = mapped_column(Text)
     
     # Relaciones

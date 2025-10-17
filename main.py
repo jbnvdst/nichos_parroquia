@@ -64,10 +64,35 @@ class CriptasApp:
     def init_database(self):
         """Inicializar la base de datos"""
         try:
+            # Ejecutar migración para agregar columna 'familia' si no existe
+            self.migrate_database()
+
             Base.metadata.create_all(bind=engine)
             print("Base de datos inicializada correctamente")
         except Exception as e:
             messagebox.showerror("Error", f"Error al inicializar la base de datos: {str(e)}")
+
+    def migrate_database(self):
+        """Ejecutar migraciones de base de datos"""
+        try:
+            db_path = "criptas.db"
+            if os.path.exists(db_path):
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+
+                # Migración 1: Agregar columna 'familia' a la tabla 'ventas'
+                cursor.execute("PRAGMA table_info(ventas)")
+                columns = [column[1] for column in cursor.fetchall()]
+
+                if 'familia' not in columns:
+                    print("Agregando columna 'familia' a la tabla ventas...")
+                    cursor.execute("ALTER TABLE ventas ADD COLUMN familia VARCHAR(100)")
+                    conn.commit()
+                    print("✓ Columna 'familia' agregada exitosamente")
+
+                conn.close()
+        except Exception as e:
+            print(f"Error en migración: {str(e)}")
     
     def setup_auto_backup(self):
         """Configurar respaldos automáticos semanales"""

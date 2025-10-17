@@ -381,12 +381,13 @@ class BusquedaManager:
             if nicho.ventas:
                 cliente = nicho.ventas[0].cliente.nombre_completo
             
+            precio_text = f"${nicho.precio:,.2f}" if nicho.precio is not None else "Sin precio"
             results.append({
                 'id': nicho.id,
                 'numero': nicho.numero,
                 'seccion': nicho.seccion,
                 'ubicacion': f"F{nicho.fila}-C{nicho.columna}",
-                'precio': f"${nicho.precio:,.2f}",
+                'precio': precio_text,
                 'estado': estado,
                 'cliente': cliente
             })
@@ -647,13 +648,14 @@ class BusquedaManager:
                 cliente = ""
                 if nicho.ventas:
                     cliente = nicho.ventas[0].cliente.nombre_completo
-                
+
+                precio_text = f"${nicho.precio:,.2f}" if nicho.precio is not None else "Sin precio"
                 results = [{
                     'id': nicho.id,
                     'numero': nicho.numero,
                     'seccion': nicho.seccion,
                     'ubicacion': f"F{nicho.fila}-C{nicho.columna}",
-                    'precio': f"${nicho.precio:,.2f}",
+                    'precio': precio_text,
                     'estado': "Disponible" if nicho.disponible else "Vendido",
                     'cliente': cliente
                 }]

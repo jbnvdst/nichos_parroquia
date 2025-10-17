@@ -200,6 +200,7 @@ class VentasManager:
                     saldo_restante=dialog.result['precio_total'] - dialog.result['enganche'],
                     tipo_pago=dialog.result['tipo_pago'],
                     pagado_completamente=dialog.result['tipo_pago'] == 'contado',
+                    familia=dialog.result.get('familia'),
                     observaciones=dialog.result.get('observaciones')
                 )
                 
@@ -312,6 +313,7 @@ class VentasManager:
                 venta.enganche = dialog.result['enganche']
                 venta.saldo_restante = dialog.result['precio_total'] - dialog.result['enganche'] - venta.total_pagado
                 venta.tipo_pago = dialog.result['tipo_pago']
+                venta.familia = dialog.result.get('familia')
                 venta.observaciones = dialog.result.get('observaciones')
                 
                 # Actualizar estado de pago
@@ -568,6 +570,7 @@ class VentaDialog:
         self.precio_var = tk.StringVar()
         self.enganche_var = tk.StringVar(value="0")
         self.tipo_pago_var = tk.StringVar(value="contado")
+        self.familia_var = tk.StringVar()
         self.observaciones_var = tk.StringVar()
         
         # Lista de beneficiarios
@@ -599,6 +602,7 @@ class VentaDialog:
             self.precio_var.set(str(self.venta.precio_total))
             self.enganche_var.set(str(self.venta.enganche))
             self.tipo_pago_var.set(self.venta.tipo_pago)
+            self.familia_var.set(self.venta.familia or "")
             self.observaciones_var.set(self.venta.observaciones or "")
             
             # Cargar beneficiarios
@@ -714,11 +718,15 @@ class VentaDialog:
         ttk.Label(parent, text="Saldo Restante:").grid(row=5, column=0, sticky=tk.W, pady=5)
         self.saldo_label = ttk.Label(parent, text="$0.00", font=("Arial", 10, "bold"))
         self.saldo_label.grid(row=5, column=1, sticky=tk.W, pady=5)
-        
+
+        # Familia (placa)
+        ttk.Label(parent, text="Familia (Placa):").grid(row=6, column=0, sticky=tk.W, pady=5)
+        ttk.Entry(parent, textvariable=self.familia_var, width=30).grid(row=6, column=1, sticky=(tk.W, tk.E), pady=5)
+
         # Observaciones
-        ttk.Label(parent, text="Observaciones:").grid(row=6, column=0, sticky=(tk.W, tk.N), pady=5)
+        ttk.Label(parent, text="Observaciones:").grid(row=7, column=0, sticky=(tk.W, tk.N), pady=5)
         self.observaciones_text = tk.Text(parent, height=3, width=30)
-        self.observaciones_text.grid(row=6, column=1, sticky=(tk.W, tk.E), pady=5)
+        self.observaciones_text.grid(row=7, column=1, sticky=(tk.W, tk.E), pady=5)
         if self.observaciones_var.get():
             self.observaciones_text.insert("1.0", self.observaciones_var.get())
         
@@ -771,18 +779,21 @@ class VentaDialog:
             # Si estamos editando, incluir el nicho actual aunque esté vendido
             if self.venta and self.venta.nicho:
                 current_nicho = self.venta.nicho
-                nicho_actual = f"{current_nicho.numero} - {current_nicho.seccion} (${current_nicho.precio:,.2f})"
+                precio_text = f"${current_nicho.precio:,.2f}" if current_nicho.precio is not None else "Sin precio"
+                nicho_actual = f"{current_nicho.numero} - {current_nicho.seccion} ({precio_text})"
                 nichos_list = [nicho_actual]
-                
+
                 # Agregar otros nichos disponibles
                 for nicho in nichos_disponibles:
                     if nicho.id != current_nicho.id:
-                        nicho_text = f"{nicho.numero} - {nicho.seccion} (${nicho.precio:,.2f})"
+                        precio_text = f"${nicho.precio:,.2f}" if nicho.precio is not None else "Sin precio"
+                        nicho_text = f"{nicho.numero} - {nicho.seccion} ({precio_text})"
                         nichos_list.append(nicho_text)
             else:
                 nichos_list = []
                 for nicho in nichos_disponibles:
-                    nicho_text = f"{nicho.numero} - {nicho.seccion} (${nicho.precio:,.2f})"
+                    precio_text = f"${nicho.precio:,.2f}" if nicho.precio is not None else "Sin precio"
+                    nicho_text = f"{nicho.numero} - {nicho.seccion} ({precio_text})"
                     nichos_list.append(nicho_text)
             
             self.nicho_combo['values'] = nichos_list
@@ -790,7 +801,8 @@ class VentaDialog:
             # Si hay un nicho seleccionado y estamos editando, mantenerlo
             if self.venta and self.venta.nicho and not self.nicho_var.get():
                 current_nicho = self.venta.nicho
-                self.nicho_var.set(f"{current_nicho.numero} - {current_nicho.seccion} (${current_nicho.precio:,.2f})")
+                precio_text = f"${current_nicho.precio:,.2f}" if current_nicho.precio is not None else "Sin precio"
+                self.nicho_var.set(f"{current_nicho.numero} - {current_nicho.seccion} ({precio_text})")
             
         except Exception as e:
             messagebox.showerror("Error", f"Error al cargar nichos: {str(e)}")
@@ -921,6 +933,7 @@ class VentaDialog:
             'precio_total': precio_total,
             'enganche': enganche,
             'tipo_pago': self.tipo_pago_var.get(),
+            'familia': self.familia_var.get().strip() or None,
             'observaciones': observaciones or None,
             'beneficiarios': self.beneficiarios.copy()
         }
@@ -1159,6 +1172,10 @@ Precio Total: ${self.venta.precio_total:,.2f}
 Enganche: ${self.venta.enganche:,.2f}
 Total Pagado: ${self.venta.total_pagado:,.2f}
 Saldo Restante: ${self.venta.saldo_restante:,.2f}
+
+FAMILIA
+
+Placa: {self.venta.familia or 'No registrada'}
 
 OBSERVACIONES
 

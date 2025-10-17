@@ -454,11 +454,12 @@ class ReportesManager:
                 cliente = venta.cliente.nombre_completo
                 fecha_venta = venta.fecha_venta.strftime('%d/%m/%Y')
             
+            precio_text = f"${nicho.precio:,.2f}" if nicho.precio is not None else "Sin precio"
             data.append([
                 nicho.numero,
                 nicho.seccion,
                 f"F{nicho.fila}-C{nicho.columna}",
-                f"${nicho.precio:,.2f}",
+                precio_text,
                 estado,
                 cliente,
                 fecha_venta

@@ -132,8 +132,8 @@ class NichosManager:
             # Agregar nichos
             for nicho in nichos:
                 estado = "Disponible" if nicho.disponible else "Vendido"
-                precio_formatted = f"${nicho.precio:,.2f}"
-                
+                precio_formatted = f"${nicho.precio:,.2f}" if nicho.precio is not None else "Sin precio"
+
                 values = (
                     nicho.numero,
                     nicho.seccion,
@@ -300,31 +300,35 @@ class NichosManager:
                 db = get_db_session()
                 created_count = 0
                 errors = []
-                
+
                 config = dialog.result
-                
+
+                # Convertir letras de fila a índices
+                fila_inicio_letra = config['fila_inicio']
+                fila_fin_letra = config['fila_fin']
+
                 # Generar nichos según configuración
-                for fila in range(config['fila_inicio'], config['fila_fin'] + 1):
+                for fila_letra in self._generar_letras(fila_inicio_letra, fila_fin_letra):
                     for columna in range(config['columna_inicio'], config['columna_fin'] + 1):
-                        
-                        # Generar número de nicho
-                        numero = f"{config['prefijo']}{fila:02d}{columna:02d}"
-                        
+
+                        # Generar número de nicho con letra de fila
+                        numero = f"{config['prefijo']}{fila_letra}{columna:02d}"
+
                         # Verificar si ya existe
                         existing = db.query(Nicho).filter(Nicho.numero == numero).first()
                         if existing:
                             errors.append(f"Nicho {numero} ya existe")
                             continue
-                        
+
                         nicho = Nicho(
                             numero=numero,
                             seccion=config['seccion'],
-                            fila=str(fila),
+                            fila=fila_letra,
                             columna=str(columna),
                             precio=config['precio'],
                             descripcion=config['descripcion']
                         )
-                        
+
                         db.add(nicho)
                         created_count += 1
                 
@@ -341,10 +345,16 @@ class NichosManager:
                 
                 messagebox.showinfo("Resultado", message)
                 self.update_status(f"Lote creado: {created_count} nichos")
-                
+
             except Exception as e:
                 messagebox.showerror("Error", f"Error al crear lote: {str(e)}")
-    
+
+    def _generar_letras(self, letra_inicio, letra_fin):
+        """Generar secuencia de letras desde letra_inicio hasta letra_fin"""
+        inicio = ord(letra_inicio.upper())
+        fin = ord(letra_fin.upper())
+        return [chr(i) for i in range(inicio, fin + 1)]
+
     def on_search(self, event=None):
         """Filtrar nichos según búsqueda"""
         search_term = self.search_var.get().lower()
@@ -375,8 +385,8 @@ class NichosManager:
             
             for nicho in nichos:
                 estado = "Disponible" if nicho.disponible else "Vendido"
-                precio_formatted = f"${nicho.precio:,.2f}"
-                
+                precio_formatted = f"${nicho.precio:,.2f}" if nicho.precio is not None else "Sin precio"
+
                 values = (
                     nicho.numero,
                     nicho.seccion,
@@ -386,9 +396,9 @@ class NichosManager:
                     estado,
                     nicho.descripcion or ""
                 )
-                
+
                 self.tree.insert('', 'end', values=values)
-            
+
             db.close()
             self.update_status(f"Búsqueda: {len(nichos)} resultados")
             
@@ -434,8 +444,8 @@ class NichosManager:
             
             for nicho in nichos:
                 estado = "Disponible" if nicho.disponible else "Vendido"
-                precio_formatted = f"${nicho.precio:,.2f}"
-                
+                precio_formatted = f"${nicho.precio:,.2f}" if nicho.precio is not None else "Sin precio"
+
                 values = (
                     nicho.numero,
                     nicho.seccion,
@@ -445,9 +455,9 @@ class NichosManager:
                     estado,
                     nicho.descripcion or ""
                 )
-                
+
                 self.tree.insert('', 'end', values=values)
-            
+
             db.close()
             self.update_status(f"Filtro aplicado: {len(nichos)} resultados")
             
@@ -504,11 +514,12 @@ class NichosManager:
             nicho = db.query(Nicho).filter(Nicho.numero == numero_nicho).first()
             
             if nicho:
+                precio_text = f"${nicho.precio:,.2f}" if nicho.precio is not None else "Sin precio asignado"
                 details = f"""
 Número: {nicho.numero}
 Sección: {nicho.seccion}
 Ubicación: Fila {nicho.fila}, Columna {nicho.columna}
-Precio: ${nicho.precio:,.2f}
+Precio: {precio_text}
 Estado: {'Disponible' if nicho.disponible else 'Vendido'}
 Descripción: {nicho.descripcion or 'Sin descripción'}
 Fecha de creación: {nicho.fecha_creacion.strftime('%d/%m/%Y')}
@@ -549,7 +560,7 @@ class NichoDialog:
             self.seccion_var.set(nicho.seccion)
             self.fila_var.set(nicho.fila)
             self.columna_var.set(nicho.columna)
-            self.precio_var.set(str(nicho.precio))
+            self.precio_var.set(str(nicho.precio) if nicho.precio is not None else "")
             self.descripcion_var.set(nicho.descripcion or "")
         
         self.create_widgets()
@@ -584,8 +595,12 @@ class NichoDialog:
         ttk.Entry(main_frame, textvariable=self.columna_var, width=30).grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5)
         
         # Precio
-        ttk.Label(main_frame, text="Precio:*").grid(row=4, column=0, sticky=tk.W, pady=5)
+        ttk.Label(main_frame, text="Precio:").grid(row=4, column=0, sticky=tk.W, pady=5)
         ttk.Entry(main_frame, textvariable=self.precio_var, width=30).grid(row=4, column=1, sticky=(tk.W, tk.E), pady=5)
+
+        # Nota sobre precio
+        ttk.Label(main_frame, text="(Opcional - puede definirse en la venta)",
+                 font=("Arial", 8), foreground="gray").grid(row=4, column=1, sticky=tk.W, pady=(35, 0))
         
         # Descripción
         ttk.Label(main_frame, text="Descripción:").grid(row=5, column=0, sticky=(tk.W, tk.N), pady=5)
@@ -633,14 +648,17 @@ class NichoDialog:
         if not self.columna_var.get().strip():
             messagebox.showerror("Error", "La columna es obligatoria")
             return
-        
-        try:
-            precio = float(self.precio_var.get())
-            if precio <= 0:
-                raise ValueError("El precio debe ser mayor a 0")
-        except ValueError:
-            messagebox.showerror("Error", "El precio debe ser un número válido mayor a 0")
-            return
+
+        # Validar precio (opcional)
+        precio = None
+        if self.precio_var.get().strip():
+            try:
+                precio = float(self.precio_var.get().strip())
+                if precio <= 0:
+                    raise ValueError("El precio debe ser mayor a 0")
+            except ValueError:
+                messagebox.showerror("Error", "El precio debe ser un número válido mayor a 0")
+                return
         
         # Obtener descripción del Text widget
         descripcion = self.desc_text.get("1.0", tk.END).strip()
@@ -676,8 +694,8 @@ class BatchNichosDialog:
         # Variables
         self.prefijo_var = tk.StringVar(value="N")
         self.seccion_var = tk.StringVar()
-        self.fila_inicio_var = tk.StringVar(value="1")
-        self.fila_fin_var = tk.StringVar(value="10")
+        self.fila_inicio_var = tk.StringVar(value="A")
+        self.fila_fin_var = tk.StringVar(value="J")
         self.columna_inicio_var = tk.StringVar(value="1")
         self.columna_fin_var = tk.StringVar(value="10")
         self.precio_var = tk.StringVar()
@@ -725,8 +743,13 @@ class BatchNichosDialog:
         ttk.Entry(columna_frame, textvariable=self.columna_fin_var, width=10).pack(side=tk.LEFT)
         
         # Precio
-        ttk.Label(main_frame, text="Precio por nicho:*").grid(row=5, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(main_frame, textvariable=self.precio_var, width=30).grid(row=5, column=1, sticky=(tk.W, tk.E), pady=5)
+        ttk.Label(main_frame, text="Precio por nicho:").grid(row=5, column=0, sticky=tk.W, pady=5)
+        precio_entry = ttk.Entry(main_frame, textvariable=self.precio_var, width=30)
+        precio_entry.grid(row=5, column=1, sticky=(tk.W, tk.E), pady=5)
+
+        # Nota sobre precio
+        ttk.Label(main_frame, text="(Dejar vacío si el precio se definirá en cada venta)",
+                 font=("Arial", 8), foreground="gray").grid(row=5, column=1, sticky=tk.W, pady=(35, 0))
         
         # Descripción
         ttk.Label(main_frame, text="Descripción:").grid(row=6, column=0, sticky=tk.W, pady=5)
@@ -775,22 +798,32 @@ class BatchNichosDialog:
         """Actualizar vista previa"""
         try:
             prefijo = self.prefijo_var.get()
-            fila_inicio = int(self.fila_inicio_var.get() or 1)
-            fila_fin = int(self.fila_fin_var.get() or 1)
+            fila_inicio = self.fila_inicio_var.get().strip().upper() or "A"
+            fila_fin = self.fila_fin_var.get().strip().upper() or "A"
             columna_inicio = int(self.columna_inicio_var.get() or 1)
             columna_fin = int(self.columna_fin_var.get() or 1)
-            
-            total_nichos = (fila_fin - fila_inicio + 1) * (columna_fin - columna_inicio + 1)
-            
-            ejemplo1 = f"{prefijo}{fila_inicio:02d}{columna_inicio:02d}"
-            ejemplo2 = f"{prefijo}{fila_fin:02d}{columna_fin:02d}"
-            
+
+            # Validar que sean letras únicas
+            if len(fila_inicio) != 1 or len(fila_fin) != 1:
+                raise ValueError("Las filas deben ser letras únicas")
+
+            if not fila_inicio.isalpha() or not fila_fin.isalpha():
+                raise ValueError("Las filas deben ser letras")
+
+            # Calcular total de nichos
+            num_filas = ord(fila_fin) - ord(fila_inicio) + 1
+            num_columnas = columna_fin - columna_inicio + 1
+            total_nichos = num_filas * num_columnas
+
+            ejemplo1 = f"{prefijo}{fila_inicio}{columna_inicio:02d}"
+            ejemplo2 = f"{prefijo}{fila_fin}{columna_fin:02d}"
+
             preview_text = f"Se crearán {total_nichos} nichos\n"
             preview_text += f"Ejemplos: {ejemplo1}, {ejemplo2}"
-            
+
         except ValueError:
             preview_text = "Ingrese valores válidos para ver la vista previa"
-        
+
         self.preview_label.config(text=preview_text)
     
     def center_window(self):
@@ -811,53 +844,57 @@ class BatchNichosDialog:
             messagebox.showerror("Error", "La sección es obligatoria")
             return
         
-        # Validar que los campos numéricos no estén vacíos
+        # Validar que los campos de fila no estén vacíos
         if not self.fila_inicio_var.get().strip():
             messagebox.showerror("Error", "La fila de inicio es obligatoria")
             return
-        
+
         if not self.fila_fin_var.get().strip():
             messagebox.showerror("Error", "La fila final es obligatoria")
             return
-        
+
         if not self.columna_inicio_var.get().strip():
             messagebox.showerror("Error", "La columna de inicio es obligatoria")
             return
-        
+
         if not self.columna_fin_var.get().strip():
             messagebox.showerror("Error", "La columna final es obligatoria")
             return
-        
-        if not self.precio_var.get().strip():
-            messagebox.showerror("Error", "El precio es obligatorio")
-            return
-        
+
         try:
-            # Convertir y validar números enteros
-            fila_inicio = int(self.fila_inicio_var.get().strip())
-            fila_fin = int(self.fila_fin_var.get().strip())
+            # Validar y procesar letras de fila
+            fila_inicio = self.fila_inicio_var.get().strip().upper()
+            fila_fin = self.fila_fin_var.get().strip().upper()
+
+            # Validar que sean letras únicas
+            if len(fila_inicio) != 1 or not fila_inicio.isalpha():
+                raise ValueError("La fila de inicio debe ser una letra única (A-Z)")
+
+            if len(fila_fin) != 1 or not fila_fin.isalpha():
+                raise ValueError("La fila final debe ser una letra única (A-Z)")
+
+            # Convertir y validar números enteros para columnas
             columna_inicio = int(self.columna_inicio_var.get().strip())
             columna_fin = int(self.columna_fin_var.get().strip())
-            
-            # Convertir y validar precio (quitar espacios y comas si las hay)
-            precio_str = self.precio_var.get().strip().replace(',', '')
-            precio = float(precio_str)
-            
+
+            # Convertir y validar precio (opcional)
+            precio = None
+            precio_str = self.precio_var.get().strip()
+            if precio_str:
+                precio_str = precio_str.replace(',', '')
+                precio = float(precio_str)
+                if precio <= 0:
+                    raise ValueError("El precio debe ser mayor a 0")
+
             # Validaciones lógicas
-            if fila_inicio <= 0:
-                raise ValueError("La fila de inicio debe ser mayor a 0")
-            
             if columna_inicio <= 0:
                 raise ValueError("La columna de inicio debe ser mayor a 0")
-            
-            if fila_inicio > fila_fin:
+
+            if ord(fila_inicio) > ord(fila_fin):
                 raise ValueError("La fila de inicio debe ser menor o igual a la fila final")
-            
+
             if columna_inicio > columna_fin:
                 raise ValueError("La columna de inicio debe ser menor o igual a la columna final")
-            
-            if precio <= 0:
-                raise ValueError("El precio debe ser mayor a 0")
                 
         except ValueError as e:
             # Manejar errores específicos de conversión
@@ -865,43 +902,47 @@ class BatchNichosDialog:
             if "could not convert string to float" in error_msg:
                 messagebox.showerror("Error", "El precio debe ser un número válido (ejemplo: 1500 o 1500.50)")
             elif "invalid literal for int()" in error_msg:
-                messagebox.showerror("Error", "Las filas y columnas deben ser números enteros válidos")
+                messagebox.showerror("Error", "Las columnas deben ser números enteros válidos")
             else:
                 messagebox.showerror("Error", f"Error en los datos: {error_msg}")
             return
-        
-        total_nichos = (fila_fin - fila_inicio + 1) * (columna_fin - columna_inicio + 1)
-        
+
+        # Calcular total de nichos usando letras
+        num_filas = ord(fila_fin) - ord(fila_inicio) + 1
+        num_columnas = columna_fin - columna_inicio + 1
+        total_nichos = num_filas * num_columnas
+
         # Validar que el total no sea excesivo
         if total_nichos > 1000:
-            response = messagebox.askyesno("Advertencia", 
+            response = messagebox.askyesno("Advertencia",
                 f"Está a punto de crear {total_nichos} nichos. "
                 f"Esto podría tomar mucho tiempo. ¿Desea continuar?")
             if not response:
                 return
-        
+
         # Confirmar creación
-        response = messagebox.askyesno("Confirmación", 
+        precio_text = f"${precio:,.2f} cada uno" if precio else "Sin precio (se definirá en cada venta)"
+        response = messagebox.askyesno("Confirmación",
             f"¿Está seguro de crear {total_nichos} nichos?\n"
             f"Sección: {self.seccion_var.get()}\n"
             f"Filas: {fila_inicio} a {fila_fin}\n"
             f"Columnas: {columna_inicio} a {columna_fin}\n"
-            f"Precio: ${precio:,.2f} cada uno")
+            f"Precio: {precio_text}")
         
         if not response:
             return
-        
+
         self.result = {
             'prefijo': self.prefijo_var.get().strip(),
             'seccion': self.seccion_var.get().strip(),
-            'fila_inicio': fila_inicio,
-            'fila_fin': fila_fin,
+            'fila_inicio': fila_inicio,  # Ahora es una letra
+            'fila_fin': fila_fin,  # Ahora es una letra
             'columna_inicio': columna_inicio,
             'columna_fin': columna_fin,
             'precio': precio,
             'descripcion': self.descripcion_var.get().strip() or None
         }
-        
+
         self.dialog.destroy()
     
     def cancel(self):
