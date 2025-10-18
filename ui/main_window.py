@@ -286,11 +286,11 @@ class MainWindow:
             'sunday': 'Domingo'
         }
 
-        current_day_spanish = days_translation.get(schedule_info['day'], 'Sábado')
+        current_day_spanish = days_translation.get(schedule_info['day'])
 
         # Información de respaldos
         info_label = ttk.Label(backup_frame,
-                              text=f"Los respaldos automáticos se realizan cada {current_day_spanish} a las {schedule_info['time']}\n"
+                              text=f"Los respaldos automáticos se realizan cada semana a las {schedule_info['time']}\n"
                                    "También puedes crear respaldos manuales cuando lo necesites.",
                               font=("Arial", 11))
         info_label.grid(row=0, column=0, columnspan=3, pady=(0, 20))
@@ -304,13 +304,13 @@ class MainWindow:
 
         self.backup_day_var = tk.StringVar(value=schedule_info['day'])
         days_options = [
-            ('Lunes', 'monday'),
-            ('Martes', 'tuesday'),
-            ('Miércoles', 'wednesday'),
-            ('Jueves', 'thursday'),
-            ('Viernes', 'friday'),
-            ('Sábado', 'saturday'),
-            ('Domingo', 'sunday')
+            ('Lunes', 'Lunes'),
+            ('Martes', 'Martes'),
+            ('Miércoles', 'Miércoles'),
+            ('Jueves', 'Jueves'),
+            ('Viernes', 'Viernes'),
+            ('Sábado', 'Sábado'),
+            ('Domingo', 'Domingo')
         ]
 
         day_combo = ttk.Combobox(config_frame, textvariable=self.backup_day_var,
@@ -319,11 +319,20 @@ class MainWindow:
         day_combo.grid(row=0, column=1, padx=5, pady=5)
 
         # Hora
-        ttk.Label(config_frame, text="Hora (HH:MM):", font=("Arial", 10)).grid(row=0, column=2, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(config_frame, text="Hora:", font=("Arial", 10)).grid(row=0, column=2, sticky=tk.W, padx=5, pady=5)
 
         self.backup_time_var = tk.StringVar(value=schedule_info['time'])
-        time_entry = ttk.Entry(config_frame, textvariable=self.backup_time_var, width=10)
-        time_entry.grid(row=0, column=3, padx=5, pady=5)
+
+        # Generar opciones de horas cada 30 minutos
+        time_options = []
+        for hour in range(24):
+            for minute in ['00', '30']:
+                time_options.append(f"{hour:02d}:{minute}")
+
+        time_combo = ttk.Combobox(config_frame, textvariable=self.backup_time_var,
+                                  values=time_options,
+                                  state='readonly', width=10)
+        time_combo.grid(row=0, column=3, padx=5, pady=5)
 
         # Botón para guardar configuración
         save_schedule_btn = ttk.Button(config_frame, text="Guardar Horario",
@@ -411,7 +420,7 @@ class MainWindow:
             return
 
         # Validar que el día sea válido
-        valid_days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+        valid_days = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo']
         if day not in valid_days:
             messagebox.showerror("Error", "Día de la semana inválido")
             return

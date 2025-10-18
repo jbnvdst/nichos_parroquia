@@ -6,11 +6,12 @@
 test_saldo.py
 .claude/settings.local.json
 *.txt
-*.pyc
 *.toc
 *.pyz
-*.pyc
 *.zip
 *.pkg
+*.csv
+/migracion
+criptas_backup_20251017_224400.db
+nul
 *.pyc
-*.db

@@ -45,20 +45,20 @@ class BackupScheduler:
 
         # Configurar el horario de respaldo según el día especificado
         day_methods = {
-            'monday': schedule.every().monday,
-            'tuesday': schedule.every().tuesday,
-            'wednesday': schedule.every().wednesday,
-            'thursday': schedule.every().thursday,
-            'friday': schedule.every().friday,
-            'saturday': schedule.every().saturday,
-            'sunday': schedule.every().sunday
+            'Lunes': schedule.every().monday,
+            'Martes': schedule.every().tuesday,
+            'Miercoles': schedule.every().wednesday,
+            'Jueves': schedule.every().thursday,
+            'Viernes': schedule.every().friday,
+            'Sabado': schedule.every().saturday,
+            'Domingo': schedule.every().sunday
         }
 
         if self.backup_day in day_methods:
             day_methods[self.backup_day].at(self.backup_time).do(self.run_automatic_backup)
         else:
             # Por defecto usar sábado si el día no es válido
-            schedule.every().saturday.at(self.backup_time).do(self.run_automatic_backup)
+            schedule.every().friday.at(self.backup_time).do(self.run_automatic_backup)
 
         self.running = True
         self.stop_event.clear()

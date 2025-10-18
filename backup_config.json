@@ -2,8 +2,8 @@
     "max_backups": 10,
     "auto_backup_enabled": true,
     "backup_schedule": "weekly",
-    "backup_day": "sunday",
-    "backup_time": "10:00",
+    "backup_day": "viernes",
+    "backup_time": "23:30",
     "include_reports": true,
     "compression_level": 6
 }
