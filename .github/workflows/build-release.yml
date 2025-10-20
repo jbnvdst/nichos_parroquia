@@ -71,7 +71,7 @@ jobs:
           exit 1
         }
 
-    - name: Crear directorios necesarios
+    - name: Crear directorios y archivos necesarios
       shell: powershell
       run: |
         # Crear directorios solo si no existen
@@ -83,6 +83,22 @@ jobs:
           } else {
             Write-Host "[INFO] Directorio ya existe: $dir"
           }
+
+          # Crear __init__.py en módulos Python si no existe
+          if ($dir -ne 'assets') {
+            $initFile = Join-Path $dir "__init__.py"
+            if (-not (Test-Path $initFile)) {
+              New-Item -ItemType File -Path $initFile -Force | Out-Null
+              Write-Host "[OK] Creado $initFile"
+            }
+          }
+        }
+
+        # Crear archivo de icono placeholder si no existe
+        $iconPath = "assets\icon.ico"
+        if (-not (Test-Path $iconPath)) {
+          Write-Host "[INFO] Creando icono placeholder..."
+          # El script de Python creará el icono si no existe
         }
 
     - name: Construir ejecutable e instalador

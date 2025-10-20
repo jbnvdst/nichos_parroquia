@@ -196,8 +196,22 @@ class InstallerBuilder:
         # Verificar si existe icono
         icon_param = f"icon='{self.icon_path}'" if os.path.exists(self.icon_path) else "icon=None"
 
+        # Construir lista de datas solo con directorios que existen
+        datas_list = []
+        data_dirs = ['database', 'ui', 'reports', 'backup']
+        for dir_name in data_dirs:
+            dir_path = self.project_root / dir_name
+            if dir_path.exists() and dir_path.is_dir():
+                datas_list.append(f"        ('{dir_name}', '{dir_name}'),")
+                print(f"  [INFO] Incluyendo directorio: {dir_name}")
+            else:
+                print(f"  [WARNING] Directorio no encontrado, omitiendo: {dir_name}")
+
+        # Si no hay datas, usar lista vacía
+        datas_content = "\n".join(datas_list) if datas_list else "        # No data directories found"
+
         spec_content = f'''# -*- mode: python ; coding: utf-8 -*-
-# Archivo .spec generado automáticamente para {self.app_name}
+# Archivo .spec generado automaticamente para {self.app_name}
 
 block_cipher = None
 
@@ -206,10 +220,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
-        ('database', 'database'),
-        ('ui', 'ui'),
-        ('reports', 'reports'),
-        ('backup', 'backup'),
+{datas_content}
     ],
     hiddenimports=[
         'sqlalchemy.dialects.sqlite',
@@ -259,7 +270,7 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,  # Sin consola para aplicación GUI
+    console=False,  # Sin consola para aplicacion GUI
     disable_windowed_traceback=False,
     target_arch=None,
     codesign_identity=None,
@@ -282,6 +293,7 @@ exe = EXE(
             'pyinstaller',
             '--clean',
             '--noconfirm',
+            '--log-level=DEBUG',  # Agregar logging detallado
             str(self.spec_file)
         ]
 
@@ -289,27 +301,46 @@ exe = EXE(
         print()
 
         try:
+            # Capturar salida para poder mostrarla en caso de error
             result = subprocess.run(
                 cmd,
                 check=True,
-                capture_output=False,  # Mostrar salida en tiempo real
-                text=True
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='replace'  # Manejar caracteres problemáticos
             )
+
+            # Mostrar salida de PyInstaller
+            if result.stdout:
+                print(result.stdout)
+            if result.stderr:
+                print("STDERR:", result.stderr)
 
             # Verificar que el ejecutable fue creado
             exe_path = self.dist_dir / f"{self.app_name}.exe"
             if exe_path.exists():
                 size_mb = exe_path.stat().st_size / (1024 * 1024)
                 print(f"\n[OK] Ejecutable creado exitosamente")
-                print(f"  Ubicación: {exe_path}")
-                print(f"  Tamaño: {size_mb:.2f} MB")
+                print(f"  Ubicacion: {exe_path}")
+                print(f"  Tamano: {size_mb:.2f} MB")
                 return True
             else:
-                print(f"[ERROR] No se encontró el ejecutable en: {exe_path}")
+                print(f"[ERROR] No se encontro el ejecutable en: {exe_path}")
                 return False
 
         except subprocess.CalledProcessError as e:
-            print(f"[ERROR] Error durante la compilación con PyInstaller")
+            print(f"[ERROR] Error durante la compilacion con PyInstaller")
+            print(f"Codigo de salida: {e.returncode}")
+            if e.stdout:
+                print("\n--- STDOUT ---")
+                print(e.stdout)
+            if e.stderr:
+                print("\n--- STDERR ---")
+                print(e.stderr)
+            return False
+        except Exception as e:
+            print(f"[ERROR] Excepcion inesperada: {type(e).__name__}: {str(e)}")
             return False
 
     def prepare_installer_files(self):
