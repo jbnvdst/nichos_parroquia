@@ -72,12 +72,18 @@ jobs:
         }
 
     - name: Crear directorios necesarios
+      shell: powershell
       run: |
-        mkdir -p assets
-        mkdir -p database
-        mkdir -p ui
-        mkdir -p reports
-        mkdir -p backup
+        # Crear directorios solo si no existen
+        $dirs = @('assets', 'database', 'ui', 'reports', 'backup')
+        foreach ($dir in $dirs) {
+          if (-not (Test-Path $dir)) {
+            New-Item -ItemType Directory -Path $dir -Force
+            Write-Host "[OK] Creado directorio: $dir"
+          } else {
+            Write-Host "[INFO] Directorio ya existe: $dir"
+          }
+        }
 
     - name: Construir ejecutable e instalador
       run: |
