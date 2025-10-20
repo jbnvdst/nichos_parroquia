@@ -6,6 +6,10 @@ on:
       - 'v*'  # Se ejecuta cuando se crea un tag que comienza con 'v' (ej: v1.0.0)
   workflow_dispatch:  # Permite ejecutar manualmente desde GitHub Actions
 
+# Permisos necesarios para crear releases
+permissions:
+  contents: write  # Necesario para crear releases y subir assets
+
 env:
   PYTHON_VERSION: '3.10'
   APP_NAME: SistemaCriptas
