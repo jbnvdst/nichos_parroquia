@@ -5,9 +5,10 @@ Interfaz para la gestión de pagos
 
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
-from database.models import (get_db_session, Venta, Pago, Cliente, Nicho, 
+from sqlalchemy import func
+from database.models import (get_db_session, Venta, Pago, Cliente, Nicho,
                            generar_numero_recibo, buscar_venta_por_contrato)
 from reports.pdf_generator import PDFGenerator
 
@@ -541,13 +542,13 @@ class PagosManager:
             # Aplicar filtro de fecha
             today = datetime.now().date()
             if filter_value == "Hoy":
-                query = query.filter(db.func.date(Pago.fecha_pago) == today)
+                query = query.filter(func.date(Pago.fecha_pago) == today)
             elif filter_value == "Semana":
                 week_start = today - timedelta(days=today.weekday())
-                query = query.filter(db.func.date(Pago.fecha_pago) >= week_start)
+                query = query.filter(func.date(Pago.fecha_pago) >= week_start)
             elif filter_value == "Mes":
                 month_start = today.replace(day=1)
-                query = query.filter(db.func.date(Pago.fecha_pago) >= month_start)
+                query = query.filter(func.date(Pago.fecha_pago) >= month_start)
             
             pagos = query.order_by(Pago.fecha_pago.desc()).all()
             
@@ -580,32 +581,39 @@ class PagosManager:
         """Actualizar display de información del día"""
         try:
             db = get_db_session()
-            
+
             today = datetime.now().date()
-            
+
             # Pagos del día
             pagos_hoy = db.query(Pago).filter(
-                db.func.date(Pago.fecha_pago) == today
+                func.date(Pago.fecha_pago) == today
             ).all()
-            
+
             total_pagos = len(pagos_hoy)
-            monto_total = sum(pago.monto for pago in pagos_hoy)
-            
-            # Métodos de pago más usados
-            metodos = {}
-            for pago in pagos_hoy:
-                metodos[pago.metodo_pago] = metodos.get(pago.metodo_pago, 0) + 1
-            
-            metodo_principal = max(metodos, key=metodos.get) if metodos else "N/A"
-            
+
             db.close()
-            
-            info_text = (f"Pagos Hoy: {total_pagos} | "
-                        f"Monto Total: ${monto_total:,.2f} | "
-                        f"Método Principal: {metodo_principal}")
-            
-            ttk.Label(parent, text=info_text, font=("Arial", 10)).pack()
-            
+
+            # Si no hay pagos del día, mostrar mensaje especial
+            if total_pagos == 0:
+                info_text = "No ha habido pagos en el día"
+                ttk.Label(parent, text=info_text, font=("Arial", 10),
+                         foreground="gray").pack()
+            else:
+                monto_total = sum(pago.monto for pago in pagos_hoy)
+
+                # Métodos de pago más usados
+                metodos = {}
+                for pago in pagos_hoy:
+                    metodos[pago.metodo_pago] = metodos.get(pago.metodo_pago, 0) + 1
+
+                metodo_principal = max(metodos, key=metodos.get) if metodos else "N/A"
+
+                info_text = (f"Pagos Hoy: {total_pagos} | "
+                            f"Monto Total: ${monto_total:,.2f} | "
+                            f"Método Principal: {metodo_principal}")
+
+                ttk.Label(parent, text=info_text, font=("Arial", 10)).pack()
+
         except Exception as e:
             ttk.Label(parent, text="Error al cargar información del día").pack()
     

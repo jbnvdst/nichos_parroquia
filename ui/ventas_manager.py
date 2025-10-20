@@ -6,7 +6,8 @@ Interfaz para la gestión de ventas
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
-from database.models import (get_db_session, Cliente, Nicho, Venta, Beneficiario, 
+from sqlalchemy import func
+from database.models import (get_db_session, Cliente, Nicho, Venta, Beneficiario,
                            generar_numero_contrato, buscar_nichos_disponibles)
 
 class VentasManager:
@@ -509,10 +510,8 @@ class VentasManager:
             ventas_pendientes = total_ventas - ventas_pagadas
             
             # Calcular totales monetarios
-            total_vendido = db.query(Venta).with_entities(
-                db.func.sum(Venta.precio_total)).scalar() or 0
-            total_pendiente = db.query(Venta).with_entities(
-                db.func.sum(Venta.saldo_restante)).scalar() or 0
+            total_vendido = db.query(func.sum(Venta.precio_total)).scalar() or 0
+            total_pendiente = db.query(func.sum(Venta.saldo_restante)).scalar() or 0
             
             db.close()
             
