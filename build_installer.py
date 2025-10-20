@@ -55,49 +55,77 @@ class InstallerBuilder:
         self.print_step(1, "Verificando requisitos")
 
         # Verificar Python
-        print(f"✓ Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+        print(f"[OK] Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
 
         # Verificar PyInstaller
         try:
             import PyInstaller
-            print(f"✓ PyInstaller instalado")
+            print(f"[OK] PyInstaller instalado")
         except ImportError:
-            print("✗ PyInstaller no encontrado. Instalando...")
+            print("[INFO] PyInstaller no encontrado. Instalando...")
             subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
-            print("✓ PyInstaller instalado")
+            print("[OK] PyInstaller instalado")
 
         # Verificar Inno Setup
-        inno_paths = [
-            r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
-            r"C:\Program Files\Inno Setup 6\ISCC.exe",
-            r"C:\Program Files (x86)\Inno Setup 5\ISCC.exe",
-            r"C:\Program Files\Inno Setup 5\ISCC.exe",
-        ]
-
         self.inno_compiler = None
-        for path in inno_paths:
-            if os.path.exists(path):
-                self.inno_compiler = path
-                print(f"✓ Inno Setup encontrado: {path}")
-                break
+
+        # Primero intentar encontrarlo en PATH
+        try:
+            result = subprocess.run(
+                ["where", "ISCC.exe"],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            if result.stdout:
+                self.inno_compiler = result.stdout.strip().split('\n')[0]
+                print(f"[OK] Inno Setup encontrado en PATH: {self.inno_compiler}")
+        except:
+            pass
+
+        # Si no está en PATH, buscar en ubicaciones comunes
+        if not self.inno_compiler:
+            inno_paths = [
+                r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+                r"C:\Program Files\Inno Setup 6\ISCC.exe",
+                r"C:\Program Files (x86)\Inno Setup 5\ISCC.exe",
+                r"C:\Program Files\Inno Setup 5\ISCC.exe",
+            ]
+
+            for path in inno_paths:
+                if os.path.exists(path):
+                    self.inno_compiler = path
+                    print(f"[OK] Inno Setup encontrado: {path}")
+                    break
+
+        # Último intento: buscar recursivamente
+        if not self.inno_compiler:
+            print("Buscando Inno Setup en Program Files...")
+            import glob
+            for pattern in [r"C:\Program Files*\Inno Setup*\ISCC.exe"]:
+                matches = glob.glob(pattern)
+                if matches:
+                    self.inno_compiler = matches[0]
+                    print(f"[OK] Inno Setup encontrado: {self.inno_compiler}")
+                    break
 
         if not self.inno_compiler:
-            print("⚠ Inno Setup no encontrado en las ubicaciones comunes")
-            print("  Descárgalo desde: https://jrsoftware.org/isdl.php")
-            print("  O especifica la ruta manualmente en el código")
+            print("[WARNING] Inno Setup no encontrado en las ubicaciones comunes")
+            print("  Descargalo desde: https://jrsoftware.org/isdl.php")
+            print("  O especifica la ruta manualmente en el codigo")
             return False
 
         # Verificar archivo principal
         if not os.path.exists(self.main_script):
-            print(f"✗ No se encuentra el archivo {self.main_script}")
+            print(f"[ERROR] No se encuentra el archivo {self.main_script}")
             return False
-        print(f"✓ Archivo principal encontrado: {self.main_script}")
+        print(f"[OK] Archivo principal encontrado: {self.main_script}")
 
         # Verificar archivo de script de instalador
         if not os.path.exists(self.iss_file):
-            print(f"✗ No se encuentra el script de Inno Setup: {self.iss_file}")
+            print(f"[ERROR] No se encuentra el script de Inno Setup: {self.iss_file}")
             return False
-        print(f"✓ Script de Inno Setup encontrado")
+        print(f"[OK] Script de Inno Setup encontrado")
 
         return True
 
@@ -111,12 +139,12 @@ class InstallerBuilder:
             if dir_path.exists():
                 print(f"  Eliminando: {dir_path}")
                 shutil.rmtree(dir_path)
-                print(f"  ✓ {dir_path} eliminado")
+                print(f"  [OK] {dir_path} eliminado")
 
         # Recrear directorios
         self.dist_dir.mkdir(exist_ok=True)
         self.installer_dir.mkdir(parents=True, exist_ok=True)
-        print("✓ Directorios recreados")
+        print("[OK] Directorios recreados")
 
     def create_version_file(self):
         """Crear archivo de información de versión para Windows"""
@@ -159,7 +187,7 @@ class InstallerBuilder:
         with open(self.version_file, 'w', encoding='utf-8') as f:
             f.write(version_content)
 
-        print(f"✓ Archivo de versión creado: {self.version_file}")
+        print(f"[OK] Archivo de versión creado: {self.version_file}")
 
     def create_spec_file(self):
         """Crear archivo .spec para PyInstaller"""
@@ -244,7 +272,7 @@ exe = EXE(
         with open(self.spec_file, 'w', encoding='utf-8') as f:
             f.write(spec_content)
 
-        print(f"✓ Archivo .spec creado: {self.spec_file}")
+        print(f"[OK] Archivo .spec creado: {self.spec_file}")
 
     def build_executable(self):
         """Construir el ejecutable con PyInstaller"""
@@ -272,16 +300,16 @@ exe = EXE(
             exe_path = self.dist_dir / f"{self.app_name}.exe"
             if exe_path.exists():
                 size_mb = exe_path.stat().st_size / (1024 * 1024)
-                print(f"\n✓ Ejecutable creado exitosamente")
+                print(f"\n[OK] Ejecutable creado exitosamente")
                 print(f"  Ubicación: {exe_path}")
                 print(f"  Tamaño: {size_mb:.2f} MB")
                 return True
             else:
-                print(f"✗ No se encontró el ejecutable en: {exe_path}")
+                print(f"[ERROR] No se encontró el ejecutable en: {exe_path}")
                 return False
 
         except subprocess.CalledProcessError as e:
-            print(f"✗ Error durante la compilación con PyInstaller")
+            print(f"[ERROR] Error durante la compilación con PyInstaller")
             return False
 
     def prepare_installer_files(self):
@@ -294,7 +322,7 @@ exe = EXE(
 
         # Crear icono placeholder si no existe
         if not (assets_dir / "icon.ico").exists():
-            print("  ⚠ No se encontró icon.ico, creando placeholder...")
+            print("  [WARNING] No se encontró icon.ico, creando placeholder...")
             # Aquí podrías generar un icono básico o simplemente notificar
 
         # Crear archivos de documentación si no existen
@@ -309,11 +337,11 @@ exe = EXE(
             if not file_path.exists():
                 with open(file_path, 'w', encoding='utf-8') as f:
                     f.write(content)
-                print(f"  ✓ Creado: {filename}")
+                print(f"  [OK] Creado: {filename}")
             else:
-                print(f"  ✓ Encontrado: {filename}")
+                print(f"  [OK] Encontrado: {filename}")
 
-        print("✓ Archivos preparados")
+        print("[OK] Archivos preparados")
 
     def create_readme_content(self):
         """Generar contenido del README"""
@@ -345,13 +373,13 @@ REQUISITOS DEL SISTEMA
 
 CARACTERÍSTICAS PRINCIPALES
 ---------------------------
-✓ Interfaz gráfica intuitiva
-✓ Base de datos SQLite integrada
-✓ Generación automática de PDFs
-✓ Respaldos automáticos programables
-✓ Sistema de actualización integrado
-✓ Búsqueda y filtrado avanzado
-✓ Reportes personalizables
+[OK] Interfaz gráfica intuitiva
+[OK] Base de datos SQLite integrada
+[OK] Generación automática de PDFs
+[OK] Respaldos automáticos programables
+[OK] Sistema de actualización integrado
+[OK] Búsqueda y filtrado avanzado
+[OK] Reportes personalizables
 
 ACTUALIZACIONES
 ---------------
@@ -404,9 +432,9 @@ Sistema de Administración de Criptas
 
 REQUISITOS PREVIOS
 ------------------
-✓ Windows 10 o superior
-✓ Permisos de administrador (para instalación)
-✓ 500 MB de espacio libre en disco
+[OK] Windows 10 o superior
+[OK] Permisos de administrador (para instalación)
+[OK] 500 MB de espacio libre en disco
 
 INSTALACIÓN
 -----------
@@ -495,7 +523,7 @@ https://github.com/jbnvdst/nichos_parroquia/issues
         self.print_step(7, "Compilando instalador con Inno Setup")
 
         if not self.inno_compiler:
-            print("✗ Inno Setup no está disponible")
+            print("[ERROR] Inno Setup no está disponible")
             return False
 
         # Actualizar versión en el archivo .iss
@@ -525,16 +553,16 @@ https://github.com/jbnvdst/nichos_parroquia/issues
             installer_path = self.installer_dir / f"{self.app_name}_Setup_v{self.version}.exe"
             if installer_path.exists():
                 size_mb = installer_path.stat().st_size / (1024 * 1024)
-                print(f"\n✓ Instalador creado exitosamente")
+                print(f"\n[OK] Instalador creado exitosamente")
                 print(f"  Ubicación: {installer_path}")
                 print(f"  Tamaño: {size_mb:.2f} MB")
                 return True
             else:
-                print(f"✗ No se encontró el instalador en: {installer_path}")
+                print(f"[ERROR] No se encontró el instalador en: {installer_path}")
                 return False
 
         except subprocess.CalledProcessError as e:
-            print(f"✗ Error durante la compilación del instalador")
+            print(f"[ERROR] Error durante la compilación del instalador")
             print(e.stdout)
             print(e.stderr)
             return False
@@ -594,7 +622,7 @@ Reporta problemas en: https://github.com/jbnvdst/nichos_parroquia/issues
         with open(notes_file, 'w', encoding='utf-8') as f:
             f.write(notes_content)
 
-        print(f"✓ Notas de versión creadas: {notes_file}")
+        print(f"[OK] Notas de versión creadas: {notes_file}")
 
     def create_build_summary(self):
         """Crear resumen de la compilación"""
@@ -630,7 +658,7 @@ Reporta problemas en: https://github.com/jbnvdst/nichos_parroquia/issues
 
         # Verificar requisitos
         if not self.check_requirements():
-            print("\n✗ Faltan requisitos necesarios. Abortando.")
+            print("\n[ERROR] Faltan requisitos necesarios. Abortando.")
             return False
 
         # Limpiar directorios
@@ -645,12 +673,12 @@ Reporta problemas en: https://github.com/jbnvdst/nichos_parroquia/issues
 
         # Construir ejecutable
         if not self.build_executable():
-            print("\n✗ Error al construir el ejecutable. Abortando.")
+            print("\n[ERROR] Error al construir el ejecutable. Abortando.")
             return False
 
         # Construir instalador
         if not self.build_installer():
-            print("\n✗ Error al construir el instalador.")
+            print("\n[ERROR] Error al construir el instalador.")
             print("  El ejecutable está disponible en:", self.dist_dir)
             return False
 

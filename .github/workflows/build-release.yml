@@ -44,25 +44,30 @@ jobs:
         echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
         echo "Versión: $VERSION"
 
-    - name: Instalar Inno Setup
+    - name: Instalar Inno Setup con Chocolatey
       shell: powershell
       run: |
-        $InnoSetupUrl = "https://jrsoftware.org/download.php/is.exe"
-        $InstallerPath = "$env:TEMP\innosetup-installer.exe"
+        Write-Host "Instalando Inno Setup via Chocolatey..."
+        choco install innosetup -y
 
-        Write-Host "Descargando Inno Setup..."
-        Invoke-WebRequest -Uri $InnoSetupUrl -OutFile $InstallerPath
-
-        Write-Host "Instalando Inno Setup..."
-        Start-Process -FilePath $InstallerPath -Args "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
+        # Refrescar variables de entorno
+        $env:ChocolateyInstall = Convert-Path "$((Get-Command choco).Path)\..\.."
+        Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+        refreshenv
 
         Write-Host "Verificando instalacion..."
         $InnoPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
         if (Test-Path $InnoPath) {
           Write-Host "[OK] Inno Setup instalado correctamente"
-          & $InnoPath /?
+          Write-Host "Ruta: $InnoPath"
+
+          # Agregar al PATH para este step
+          $InnoDir = Split-Path -Parent $InnoPath
+          echo "$InnoDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
         } else {
           Write-Host "[ERROR] Inno Setup no se instalo correctamente"
+          Write-Host "Buscando en otras ubicaciones..."
+          Get-ChildItem -Path "C:\Program Files*" -Filter "ISCC.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object FullName
           exit 1
         }
 
