@@ -16,7 +16,7 @@ class InstallerBuilder:
     Incluye compilación del ejecutable y creación del instalador
     """
 
-    def __init__(self, version="1.0.0"):
+    def __init__(self, version="1.0.5"):
         """
         Inicializar el constructor
 
@@ -225,15 +225,7 @@ class InstallerBuilder:
         spec_content = f'''# -*- mode: python ; coding: utf-8 -*-
 # Archivo .spec generado automaticamente para {self.app_name}
 
-from PyInstaller.utils.hooks import collect_submodules, collect_data_files
-
 block_cipher = None
-
-# Recolectar todos los submodulos de paquetes problematicos
-hiddenimports_schedule = collect_submodules('schedule')
-hiddenimports_requests = collect_submodules('requests')
-hiddenimports_sqlalchemy = collect_submodules('sqlalchemy')
-hiddenimports_reportlab = collect_submodules('reportlab')
 
 a = Analysis(
     ['{self.main_script}'],
@@ -243,34 +235,75 @@ a = Analysis(
 {datas_content}
     ],
     hiddenimports=[
-        # SQLAlchemy
+        # Modulos criticos - TODOS listados explicitamente
+        'schedule',
+        'schedule.job',
+
+        # SQLAlchemy - completo
+        'sqlalchemy',
+        'sqlalchemy.dialects',
         'sqlalchemy.dialects.sqlite',
         'sqlalchemy.pool',
+        'sqlalchemy.ext',
         'sqlalchemy.ext.declarative',
+        'sqlalchemy.sql',
         'sqlalchemy.sql.default_comparator',
-        # ReportLab
+        'sqlalchemy.orm',
+        'sqlalchemy.engine',
+
+        # ReportLab - completo
+        'reportlab',
         'reportlab.pdfgen',
         'reportlab.pdfgen.canvas',
         'reportlab.lib',
         'reportlab.lib.pagesizes',
         'reportlab.lib.units',
         'reportlab.lib.colors',
+        'reportlab.lib.styles',
         'reportlab.platypus',
         'reportlab.graphics',
+
+        # Pillow
+        'PIL',
+        'PIL.Image',
+
         # Tkinter
         'tkinter',
         'tkinter.ttk',
         'tkinter.messagebox',
         'tkinter.filedialog',
-        # Otros modulos
-        'schedule',
-        'threading',
-        'json',
-        'pathlib',
+
+        # Requests - completo
         'requests',
         'requests.adapters',
         'requests.exceptions',
+        'requests.auth',
+        'requests.models',
+        'requests.sessions',
         'urllib3',
+        'urllib3.util',
+        'urllib3.util.retry',
+
+        # Pandas y dependencias
+        'pandas',
+        'numpy',
+        'openpyxl',
+        'openpyxl.writer',
+        'openpyxl.writer.excel',
+        'et_xmlfile',
+
+        # Python-dateutil
+        'dateutil',
+        'dateutil.parser',
+        'dateutil.tz',
+
+        # Otros modulos necesarios
+        'shortuuid',
+        'packaging',
+        'packaging.version',
+        'threading',
+        'json',
+        'pathlib',
         'zipfile',
         'datetime',
         'time',
@@ -278,7 +311,16 @@ a = Analysis(
         'shutil',
         'tempfile',
         'webbrowser',
-    ] + hiddenimports_schedule + hiddenimports_requests + hiddenimports_sqlalchemy + hiddenimports_reportlab,
+        'sqlite3',
+
+        # Modulos del sistema
+        'greenlet',
+        'charset_normalizer',
+        'pytz',
+        'six',
+        'typing_extensions',
+        'tzdata',
+    ],
     hookspath=[],
     hooksconfig={{}},
     runtime_hooks=[],
@@ -765,7 +807,7 @@ def main():
     parser.add_argument(
         "--version",
         "-v",
-        default="1.0.0",
+        default="1.0.5",
         help="Versión de la aplicación (formato: X.Y.Z)"
     )
     parser.add_argument(
