@@ -56,13 +56,13 @@ jobs:
         Write-Host "Instalando Inno Setup..."
         Start-Process -FilePath $InstallerPath -Args "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
 
-        Write-Host "Verificando instalación..."
+        Write-Host "Verificando instalacion..."
         $InnoPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
         if (Test-Path $InnoPath) {
-          Write-Host "✓ Inno Setup instalado correctamente"
+          Write-Host "[OK] Inno Setup instalado correctamente"
           & $InnoPath /?
         } else {
-          Write-Host "✗ Error: Inno Setup no se instaló correctamente"
+          Write-Host "[ERROR] Inno Setup no se instalo correctamente"
           exit 1
         }
 
@@ -87,11 +87,11 @@ jobs:
         # Verificar que el instalador fue creado
         INSTALLER="dist/installer/${APP_NAME}_Setup_v${{ steps.get_version.outputs.VERSION }}.exe"
         if [ -f "$INSTALLER" ]; then
-          echo "✓ Instalador creado: $INSTALLER"
+          echo "[OK] Instalador creado: $INSTALLER"
           SIZE=$(du -h "$INSTALLER" | cut -f1)
-          echo "  Tamaño: $SIZE"
+          echo "  Tamano: $SIZE"
         else
-          echo "✗ Error: No se encontró el instalador"
+          echo "[ERROR] No se encontro el instalador"
           exit 1
         fi
 
@@ -128,8 +128,8 @@ jobs:
       shell: bash
       run: |
         if [ "${{ job.status }}" == "success" ]; then
-          echo "✅ Build completado exitosamente"
-          echo "Versión: ${{ steps.get_version.outputs.VERSION }}"
+          echo "[SUCCESS] Build completado exitosamente"
+          echo "Version: ${{ steps.get_version.outputs.VERSION }}"
         else
-          echo "❌ Build falló"
+          echo "[FAILED] Build fallo"
         fi
