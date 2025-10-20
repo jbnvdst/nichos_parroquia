@@ -22,34 +22,45 @@ from database.models import Nicho, Cliente, Venta, Pago, Beneficiario
 from ui.main_window import MainWindow
 from reports.pdf_generator import PDFGenerator
 from backup.backup_manager import BackupManager
+from github_updater import GitHubUpdater
 
 class CriptasApp:
+    # Versión de la aplicación (actualizar en cada release)
+    VERSION = "1.0.0"
+
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("Sistema de Administración de Criptas - Parroquia")
+        self.root.title(f"Sistema de Administración de Criptas - Parroquia v{self.VERSION}")
         self.root.geometry("1536x864")
         self.root.configure(bg='#f0f0f0')
-        
+
         # Configurar estilo
         self.setup_style()
-        
+
         # Crear base de datos si no existe
         self.init_database()
-        
+
         # Inicializar ventana principal
         self.main_window = MainWindow(self.root)
-        
+
         # Inicializar generador de PDFs
         self.pdf_generator = PDFGenerator()
-        
+
         # Inicializar gestor de respaldos
         self.backup_manager = BackupManager()
-        
+
+        # Inicializar sistema de actualizaciones
+        self.updater = GitHubUpdater(
+            repo_owner="jbnvdst",
+            repo_name="nichos_parroquia",
+            current_version=self.VERSION
+        )
+
         # Configurar respaldos automáticos
         self.setup_auto_backup()
-        
-        # Verificar actualizaciones (placeholder)
-        self.check_for_updates()
+
+        # Verificar actualizaciones al iniciar (silenciosamente)
+        self.check_for_updates_on_startup()
     
     def setup_style(self):
         """Configurar estilos de la aplicación"""
@@ -108,11 +119,23 @@ class CriptasApp:
         backup_thread = threading.Thread(target=run_scheduler, daemon=True)
         backup_thread.start()
     
-    def check_for_updates(self):
-        """Verificar actualizaciones remotas (placeholder)"""
-        # Aquí implementarías la lógica para verificar actualizaciones
-        # Puedes usar requests para conectar a un servidor y verificar versiones
-        pass
+    def check_for_updates_on_startup(self):
+        """Verificar actualizaciones al iniciar la aplicación (silenciosamente)"""
+        try:
+            self.updater.check_updates_on_startup(self.root)
+        except Exception as e:
+            # No mostrar errores al verificar actualizaciones en el inicio
+            print(f"Error al verificar actualizaciones: {e}")
+
+    def check_for_updates_manual(self):
+        """Verificar actualizaciones manualmente (desde menú Ayuda)"""
+        try:
+            self.updater.check_for_updates(silent=False)
+        except Exception as e:
+            messagebox.showerror(
+                "Error",
+                f"No se pudo verificar actualizaciones:\n{str(e)}"
+            )
     
     def run(self):
         """Ejecutar la aplicación"""

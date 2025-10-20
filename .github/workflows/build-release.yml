@@ -1,0 +1,135 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Se ejecuta cuando se crea un tag que comienza con 'v' (ej: v1.0.0)
+  workflow_dispatch:  # Permite ejecutar manualmente desde GitHub Actions
+
+env:
+  PYTHON_VERSION: '3.10'
+  APP_NAME: SistemaCriptas
+
+jobs:
+  build-windows-installer:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout código
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Obtener todo el historial para tags
+
+    - name: Configurar Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Instalar dependencias
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Obtener versión del tag
+      id: get_version
+      shell: bash
+      run: |
+        if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          VERSION=${GITHUB_REF#refs/tags/v}
+        else
+          VERSION="dev-$(git rev-parse --short HEAD)"
+        fi
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        echo "Versión: $VERSION"
+
+    - name: Instalar Inno Setup
+      shell: powershell
+      run: |
+        $InnoSetupUrl = "https://jrsoftware.org/download.php/is.exe"
+        $InstallerPath = "$env:TEMP\innosetup-installer.exe"
+
+        Write-Host "Descargando Inno Setup..."
+        Invoke-WebRequest -Uri $InnoSetupUrl -OutFile $InstallerPath
+
+        Write-Host "Instalando Inno Setup..."
+        Start-Process -FilePath $InstallerPath -Args "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
+
+        Write-Host "Verificando instalación..."
+        $InnoPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+        if (Test-Path $InnoPath) {
+          Write-Host "✓ Inno Setup instalado correctamente"
+          & $InnoPath /?
+        } else {
+          Write-Host "✗ Error: Inno Setup no se instaló correctamente"
+          exit 1
+        }
+
+    - name: Crear directorios necesarios
+      run: |
+        mkdir -p assets
+        mkdir -p database
+        mkdir -p ui
+        mkdir -p reports
+        mkdir -p backup
+
+    - name: Construir ejecutable e instalador
+      run: |
+        python build_installer.py --version ${{ steps.get_version.outputs.VERSION }}
+
+    - name: Verificar archivos generados
+      shell: bash
+      run: |
+        ls -lh dist/
+        ls -lh dist/installer/
+
+        # Verificar que el instalador fue creado
+        INSTALLER="dist/installer/${APP_NAME}_Setup_v${{ steps.get_version.outputs.VERSION }}.exe"
+        if [ -f "$INSTALLER" ]; then
+          echo "✓ Instalador creado: $INSTALLER"
+          SIZE=$(du -h "$INSTALLER" | cut -f1)
+          echo "  Tamaño: $SIZE"
+        else
+          echo "✗ Error: No se encontró el instalador"
+          exit 1
+        fi
+
+    - name: Subir instalador como artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-installer
+        path: dist/installer/${{ env.APP_NAME }}_Setup_v${{ steps.get_version.outputs.VERSION }}.exe
+        retention-days: 30
+
+    - name: Subir notas de versión como artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-notes
+        path: dist/installer/Release_Notes_v${{ steps.get_version.outputs.VERSION }}.md
+        retention-days: 30
+
+    - name: Crear Release en GitHub
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          dist/installer/${{ env.APP_NAME }}_Setup_v${{ steps.get_version.outputs.VERSION }}.exe
+          dist/installer/Release_Notes_v${{ steps.get_version.outputs.VERSION }}.md
+        body_path: dist/installer/Release_Notes_v${{ steps.get_version.outputs.VERSION }}.md
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Notificar resultado
+      if: always()
+      shell: bash
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "✅ Build completado exitosamente"
+          echo "Versión: ${{ steps.get_version.outputs.VERSION }}"
+        else
+          echo "❌ Build falló"
+        fi

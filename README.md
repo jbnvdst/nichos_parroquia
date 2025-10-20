@@ -63,7 +63,10 @@ Sistema completo desarrollado en Python para la administración de criptas en pa
 - **SQLite**: Base de datos local
 - **ReportLab**: Generación de PDFs
 - **Schedule**: Tareas programadas
+- **Requests**: Actualizaciones HTTP desde GitHub
 - **PyInstaller**: Creación del ejecutable
+- **Inno Setup**: Creación del instalador Windows
+- **GitHub Actions**: CI/CD automatizado
 
 ## 📦 Instalación
 
@@ -102,17 +105,27 @@ Sistema completo desarrollado en Python para la administración de criptas en pa
 
 #### Crear Instalador de Windows
 
-**Método rápido (todo en uno):**
+**Método automatizado (Recomendado):**
 ```bash
-python create_installer.py
+# Construir ejecutable + instalador completo
+python build_installer.py --version 1.0.0
 ```
 
-**Solo el ejecutable:**
+**Solo el ejecutable (sin instalador):**
 ```bash
-python build_executable.py
+python build_installer.py --version 1.0.0 --skip-installer
 ```
 
-Ver [GUIA_INSTALADOR.md](GUIA_INSTALADOR.md) para instrucciones detalladas.
+**Publicar release en GitHub:**
+```bash
+# Crear tag de versión
+git tag v1.0.0
+git push origin v1.0.0
+
+# GitHub Actions construirá y publicará automáticamente
+```
+
+Ver [BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md) para instrucciones detalladas.
 
 ### Requisitos del Sistema
 - Windows 10 o superior
@@ -314,26 +327,37 @@ sistema-criptas/
 2. Verificar permisos de escritura
 3. Reinstalar ReportLab: `pip install --upgrade reportlab`
 
-## 🔄 Actualizaciones
+## 🔄 Actualizaciones Automáticas desde GitHub
 
-### Verificación de Actualizaciones
-- El sistema verifica automáticamente actualizaciones
-- Se notifica cuando hay versiones nuevas disponibles
-- Descarga manual desde el sitio oficial
+### Sistema de Actualización Integrado
+El sistema incluye un módulo de actualización automática que:
+- ✅ Verifica actualizaciones automáticamente al iniciar
+- ✅ Compara la versión actual con la última en GitHub Releases
+- ✅ Muestra las notas de versión antes de actualizar
+- ✅ Descarga e instala actualizaciones con un clic
+- ✅ No requiere intervención manual del usuario
+
+### Verificación Manual de Actualizaciones
+Desde el menú:
+```
+Ayuda → Verificar Actualizaciones
+```
 
 ### Instalación de Actualizaciones
-1. Crear respaldo antes de actualizar
-2. Cerrar el programa completamente
-3. Descargar nueva versión
-4. Extraer sobre la instalación existente
-5. Ejecutar nueva versión
+1. El sistema detecta automáticamente la nueva versión
+2. Muestra un diálogo con las novedades
+3. Haz clic en "Descargar e Instalar"
+4. El instalador se descarga automáticamente
+5. Cierra la aplicación actual
+6. Ejecuta el instalador descargado
+7. ¡Listo! Ya tienes la última versión
 
 ## 📞 Soporte Técnico
 
 ### Información de Contacto
-- **Email**: soporte@sistema-criptas.com
-- **Teléfono**: +1 (555) 999-8888
-- **Horario**: Lunes a Viernes, 9:00 AM - 6:00 PM
+- **GitHub Issues**: [Reportar problemas](https://github.com/jbnvdst/nichos_parroquia/issues)
+- **GitHub Discussions**: [Hacer preguntas](https://github.com/jbnvdst/nichos_parroquia/discussions)
+- **Releases**: [Descargar versiones](https://github.com/jbnvdst/nichos_parroquia/releases)
 
 ### Antes de Contactar Soporte
 1. Revisar este README completamente
@@ -373,7 +397,16 @@ sistema-criptas/
 
 ## 📄 Licencia
 
-Este software es propietario y está destinado exclusivamente para uso en parroquias y organizaciones religiosas. No se permite la redistribución, modificación o uso comercial sin autorización expresa.
+Este proyecto está bajo la Licencia MIT. Ver [LICENSE.txt](LICENSE.txt) para más detalles.
+
+```
+MIT License
+
+Copyright (c) 2024 Parroquia Nuestra Señora del Consuelo de los Afligidos
+
+Por la presente se concede permiso, libre de cargos, a cualquier persona
+que obtenga una copia de este software...
+```
 
 ## 🤝 Créditos
 
