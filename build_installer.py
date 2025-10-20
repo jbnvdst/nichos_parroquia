@@ -193,8 +193,16 @@ class InstallerBuilder:
         """Crear archivo .spec para PyInstaller"""
         self.print_step(4, "Creando archivo .spec de PyInstaller")
 
+        # Convertir rutas a formato POSIX (/) para evitar problemas con backslash
+        def normalize_path(path):
+            """Convertir Path a string con barras normales"""
+            return str(path).replace('\\', '/')
+
         # Verificar si existe icono
-        icon_param = f"icon='{self.icon_path}'" if os.path.exists(self.icon_path) else "icon=None"
+        if os.path.exists(self.icon_path):
+            icon_param = f"icon=r'{normalize_path(self.icon_path)}'"
+        else:
+            icon_param = "icon=None"
 
         # Construir lista de datas solo con directorios que existen
         datas_list = []
@@ -209,6 +217,10 @@ class InstallerBuilder:
 
         # Si no hay datas, usar lista vacía
         datas_content = "\n".join(datas_list) if datas_list else "        # No data directories found"
+
+        # Normalizar ruta del archivo de versión
+        version_file_path = normalize_path(self.version_file)
+        version_param = f"version=r'{version_file_path}'" if self.version_file.exists() else "version=None"
 
         spec_content = f'''# -*- mode: python ; coding: utf-8 -*-
 # Archivo .spec generado automaticamente para {self.app_name}
@@ -276,7 +288,7 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     {icon_param},
-    version='{self.version_file}',
+    {version_param},
 )
 '''
 
