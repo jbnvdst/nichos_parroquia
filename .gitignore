@@ -5,7 +5,6 @@
 /backups
 test_saldo.py
 .claude/settings.local.json
-*.txt
 *.toc
 *.pyz
 *.zip
@@ -15,3 +14,4 @@ test_saldo.py
 criptas_backup_20251017_224400.db
 nul
 *.pyc
+TOO.txt
