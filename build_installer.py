@@ -225,7 +225,15 @@ class InstallerBuilder:
         spec_content = f'''# -*- mode: python ; coding: utf-8 -*-
 # Archivo .spec generado automaticamente para {self.app_name}
 
+from PyInstaller.utils.hooks import collect_submodules, collect_data_files
+
 block_cipher = None
+
+# Recolectar todos los submodulos de paquetes problematicos
+hiddenimports_schedule = collect_submodules('schedule')
+hiddenimports_requests = collect_submodules('requests')
+hiddenimports_sqlalchemy = collect_submodules('sqlalchemy')
+hiddenimports_reportlab = collect_submodules('reportlab')
 
 a = Analysis(
     ['{self.main_script}'],
@@ -235,9 +243,12 @@ a = Analysis(
 {datas_content}
     ],
     hiddenimports=[
+        # SQLAlchemy
         'sqlalchemy.dialects.sqlite',
         'sqlalchemy.pool',
         'sqlalchemy.ext.declarative',
+        'sqlalchemy.sql.default_comparator',
+        # ReportLab
         'reportlab.pdfgen',
         'reportlab.pdfgen.canvas',
         'reportlab.lib',
@@ -245,21 +256,33 @@ a = Analysis(
         'reportlab.lib.units',
         'reportlab.lib.colors',
         'reportlab.platypus',
+        'reportlab.graphics',
+        # Tkinter
         'tkinter',
         'tkinter.ttk',
         'tkinter.messagebox',
         'tkinter.filedialog',
+        # Otros modulos
         'schedule',
         'threading',
         'json',
         'pathlib',
         'requests',
+        'requests.adapters',
+        'requests.exceptions',
+        'urllib3',
         'zipfile',
-    ],
+        'datetime',
+        'time',
+        'os',
+        'shutil',
+        'tempfile',
+        'webbrowser',
+    ] + hiddenimports_schedule + hiddenimports_requests + hiddenimports_sqlalchemy + hiddenimports_reportlab,
     hookspath=[],
     hooksconfig={{}},
     runtime_hooks=[],
-    excludes=['pytest', 'test', 'tests'],
+    excludes=['pytest', 'test', 'tests', 'setuptools'],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
