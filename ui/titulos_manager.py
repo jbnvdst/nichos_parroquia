@@ -94,7 +94,7 @@ class TitulosManager:
         # Configurar columnas
         self.tree.heading('contrato', text='Contrato')
         self.tree.heading('fecha_venta', text='Fecha Venta')
-        self.tree.heading('cliente', text='Cliente')
+        self.tree.heading('cliente', text='Titular')
         self.tree.heading('nicho', text='Nicho')
         self.tree.heading('precio', text='Precio')
         self.tree.heading('estado_pago', text='Estado Pago')

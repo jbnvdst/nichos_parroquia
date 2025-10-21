@@ -73,7 +73,7 @@ class MainWindow:
         
         # Botones de navegación
         buttons = [
-            ("🏠 Dashboard", self.show_dashboard),
+            ("🏠 Inicio", self.show_dashboard),
             ("🏛️ Gestión de Nichos", self.show_nichos),
             ("💰 Ventas", self.show_ventas),
             ("💳 Pagos", self.show_pagos),
@@ -210,7 +210,7 @@ class MainWindow:
         quick_actions = [
             ("Nueva Venta", self.quick_new_sale),
             ("Registrar Pago", self.quick_new_payment),
-            ("Buscar Cliente", self.quick_search_client),
+            ("Buscar Titular", self.quick_search_client),
             ("Generar Reporte", self.quick_generate_report),
             ("Respaldar Base de Datos", self.quick_backup),
             ("Imprimir Título", self.quick_print_title)

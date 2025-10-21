@@ -100,7 +100,7 @@ class PagosManager:
         self.tree.heading('fecha', text='Fecha')
         self.tree.heading('recibo', text='N° Recibo')
         self.tree.heading('contrato', text='Contrato')
-        self.tree.heading('cliente', text='Cliente')
+        self.tree.heading('cliente', text='Titular')
         self.tree.heading('monto', text='Monto')
         self.tree.heading('metodo', text='Método')
         self.tree.heading('concepto', text='Concepto')
@@ -711,7 +711,7 @@ class PagoDialog:
             contrato_entry.config(state="disabled")
         
         # Información del cliente (solo lectura)
-        ttk.Label(main_frame, text="Cliente:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        ttk.Label(main_frame, text="Titular:").grid(row=2, column=0, sticky=tk.W, pady=5)
         ttk.Label(main_frame, textvariable=self.cliente_info_var, 
                 foreground="blue").grid(row=2, column=1, sticky=tk.W, pady=5)
         
@@ -1071,7 +1071,7 @@ class VentaSelectionDialog:
         
         # Configurar columnas
         self.tree.heading('contrato', text='N° Contrato')
-        self.tree.heading('cliente', text='Cliente')
+        self.tree.heading('cliente', text='Titular')
         self.tree.heading('nicho', text='Nicho')
         self.tree.heading('precio', text='Precio Total')
         self.tree.heading('saldo', text='Saldo Pendiente')

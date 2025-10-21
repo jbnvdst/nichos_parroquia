@@ -115,7 +115,7 @@ class ReportesManager:
         ttk.Label(parent, text="Agrupar por:").grid(row=5, column=0, sticky=tk.W, pady=5)
         self.agrupar_por = tk.StringVar(value="fecha")
         agrupar_combo = ttk.Combobox(parent, textvariable=self.agrupar_por, width=30, state="readonly")
-        agrupar_combo['values'] = ('fecha', 'cliente', 'nicho', 'metodo_pago', 'tipo_pago', 'seccion')
+        agrupar_combo['values'] = ('fecha', 'titular', 'nicho', 'metodo_pago', 'tipo_pago', 'seccion')
         agrupar_combo.grid(row=5, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 0))
         
         # Botón para generar vista previa

@@ -92,7 +92,7 @@ class VentasManager:
         # Configurar columnas
         self.tree.heading('contrato', text='Contrato')
         self.tree.heading('fecha', text='Fecha')
-        self.tree.heading('cliente', text='Cliente')
+        self.tree.heading('cliente', text='Titular')
         self.tree.heading('nicho', text='Nicho')
         self.tree.heading('precio_total', text='Precio Total')
         self.tree.heading('tipo_pago', text='Tipo Pago')
@@ -625,7 +625,7 @@ class VentaDialog:
         
         # Pestaña de Cliente
         cliente_frame = ttk.Frame(notebook, padding="20")
-        notebook.add(cliente_frame, text="Cliente Titular")
+        notebook.add(cliente_frame, text="Titular")
         self.create_cliente_widgets(cliente_frame)
         
         # Pestaña de Nicho
@@ -647,7 +647,7 @@ class VentaDialog:
     
     def create_cliente_widgets(self, parent):
         """Crear widgets para datos del cliente"""
-        ttk.Label(parent, text="Datos del Cliente Titular", 
+        ttk.Label(parent, text="Datos del Titular",
                  font=("Arial", 12, "bold")).grid(row=0, column=0, columnspan=2, pady=(0, 20))
         
         # Nombre
@@ -990,8 +990,8 @@ class VentaDialog:
     
     def show_cliente_info(self, cliente):
         """Mostrar información del cliente recién creado"""
-        messagebox.showinfo("Cliente Creado", 
-            f"Cliente creado exitosamente:\n"
+        messagebox.showinfo("Titular Creado",
+            f"Titular creado exitosamente:\n"
             f"Nombre: {cliente.nombre_completo}\n"
             f"Cédula: {cliente.cedula}\n"
             f"Teléfono: {cliente.telefono or 'N/A'}")

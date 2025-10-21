@@ -36,7 +36,7 @@ Sistema completo desarrollado en Python para la administración de criptas en pa
 ### 🔍 Búsqueda Avanzada
 - Búsqueda por número de contrato
 - Búsqueda por número de cripta
-- Búsqueda por nombre del cliente
+- Búsqueda por nombre del Titular
 - Filtros múltiples y búsqueda combinada
 - Resultados organizados y exportables
 
@@ -151,7 +151,7 @@ Ver [BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md) para instrucciones detalladas
 
 2. **Registrar Venta**
    - Ir a "Ventas" → "Nueva Venta"
-   - Ingresar datos del cliente
+   - Ingresar datos del Titular
    - Seleccionar nicho disponible
    - Definir tipo de pago (contado/crédito)
    - Agregar beneficiarios si es necesario
@@ -177,7 +177,7 @@ Ver [BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md) para instrucciones detalladas
 
 - **Por Contrato**: Ingresar número en búsqueda rápida
 - **Por Cripta**: Buscar por número de nicho
-- **Por Cliente**: Buscar por nombre o cédula
+- **Por Titular**: Buscar por nombre o cédula
 
 ## 📁 Estructura de Archivos
 
@@ -291,7 +291,7 @@ sistema-criptas/
 
 ### Reportes Financieros
 - Resumen de ingresos y saldos
-- Estados de cuenta por cliente
+- Estados de cuenta por Titular
 - Saldos pendientes de cobro
 
 ### Reportes de Inventario
@@ -301,7 +301,7 @@ sistema-criptas/
 
 ### Reportes de Clientes
 - Lista completa de clientes
-- Historial de compras por cliente
+- Historial de compras por Titular
 - Información de contacto actualizada
 
 ## 🆘 Solución de Problemas

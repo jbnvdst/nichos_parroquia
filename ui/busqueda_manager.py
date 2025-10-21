@@ -49,7 +49,7 @@ class BusquedaManager:
         ttk.Label(parent, text="Buscar en:").grid(row=0, column=0, sticky=tk.W, pady=5)
         self.search_type = tk.StringVar(value="todo")
         search_type_combo = ttk.Combobox(parent, textvariable=self.search_type, width=30, state="readonly")
-        search_type_combo['values'] = ('todo', 'clientes', 'nichos', 'ventas', 'pagos')
+        search_type_combo['values'] = ('todo', 'titular', 'nichos', 'ventas', 'pagos')
         search_type_combo.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 0))
         search_type_combo.bind('<<ComboboxSelected>>', self.on_search_type_changed)
         
@@ -116,7 +116,7 @@ class BusquedaManager:
                   command=self.search_by_cripta).grid(row=1, column=2, padx=(10, 0))
         
         # Búsqueda por cliente
-        ttk.Label(parent, text="Cliente:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        ttk.Label(parent, text="Titular:").grid(row=2, column=0, sticky=tk.W, pady=5)
         self.cliente_var = tk.StringVar()
         cliente_entry = ttk.Entry(parent, textvariable=self.cliente_var, width=20)
         cliente_entry.grid(row=2, column=1, sticky=tk.W, pady=5, padx=(10, 0))
@@ -233,7 +233,7 @@ class BusquedaManager:
         try:
             if search_type == 'todo':
                 results = self.search_all(search_term)
-            elif search_type == 'clientes':
+            elif search_type == 'titular':
                 results = self.search_clientes(search_term)
             elif search_type == 'nichos':
                 results = self.search_nichos(search_term)
@@ -257,7 +257,7 @@ class BusquedaManager:
         # Buscar en clientes
         cliente_results = self.search_clientes(term)
         for result in cliente_results:
-            result['tipo'] = 'Cliente'
+            result['tipo'] = 'Titular'
             results.append(result)
         
         # Buscar en nichos
@@ -529,8 +529,8 @@ class BusquedaManager:
             self.results_tree.heading('detalle2', text='Detalle 2')
             
             for result in results:
-                if result['tipo'] == 'Cliente':
-                    values = (result['tipo'], result['id'], result['nombre'], 
+                if result['tipo'] == 'Titular':
+                    values = (result['tipo'], result['id'], result['nombre'],
                              result['cedula'], result['telefono'])
                 elif result['tipo'] == 'Nicho':
                     values = (result['tipo'], result['id'], result['numero'], 
