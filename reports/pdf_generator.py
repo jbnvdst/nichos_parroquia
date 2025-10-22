@@ -7,7 +7,7 @@ from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, Frame, PageTemplate, BaseDocTemplate, KeepTogether
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY
 from datetime import datetime
 import os
@@ -64,11 +64,159 @@ class PDFGenerator:
             fontSize=12,
             alignment=TA_CENTER
         ))
-    
+
+        # Estilo para etiqueta de copia
+        self.styles.add(ParagraphStyle(
+            name='CopyLabel',
+            parent=self.styles['Normal'],
+            fontSize=10,
+            alignment=TA_CENTER,
+            textColor=colors.grey,
+            spaceAfter=10
+        ))
+
+    def _crear_contenido_recibo(self, pago_data, venta_data, cliente_data, nicho_data, etiqueta_copia):
+        """
+        Crear contenido de un recibo individual
+
+        Args:
+            pago_data: Diccionario con datos del pago
+            venta_data: Diccionario con datos de la venta
+            cliente_data: Diccionario con datos del cliente
+            nicho_data: Diccionario con datos del nicho
+            etiqueta_copia: Texto para identificar la copia (ej: "COPIA PARROQUIA")
+
+        Returns:
+            Lista de elementos Platypus para el recibo
+        """
+        elementos = []
+
+        # Etiqueta de la copia
+        copy_style = ParagraphStyle(
+            name='CompactCopyLabel',
+            parent=self.styles['Normal'],
+            fontSize=8,
+            alignment=TA_CENTER,
+            textColor=colors.grey,
+            spaceAfter=5
+        )
+        elementos.append(Paragraph(f"<b>{etiqueta_copia}</b>", copy_style))
+
+        # Encabezado con información de la parroquia (versión compacta)
+        header_style = ParagraphStyle(
+            name='CompactHeader',
+            parent=self.styles['Normal'],
+            fontSize=8,
+            alignment=TA_CENTER
+        )
+        info_parroquia = f"""
+        <b>{self.parish_config['nombre']}</b><br/>
+        {self.parish_config['direccion']}<br/>
+        Tel: {self.parish_config['telefono']}
+        """
+        elementos.append(Paragraph(info_parroquia, header_style))
+
+        # Línea separadora
+        line_data = [['_' * 60]]
+        line_table = Table(line_data)
+        line_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ]))
+        elementos.append(line_table)
+        elementos.append(Spacer(1, 3))
+
+        # Título del documento
+        title_style = ParagraphStyle(
+            name='CompactTitle',
+            parent=self.styles['Title'],
+            fontSize=12,
+            spaceAfter=5,
+            alignment=TA_CENTER,
+            textColor=colors.darkblue
+        )
+        elementos.append(Paragraph("RECIBO DE PAGO", title_style))
+        elementos.append(Spacer(1, 5))
+
+        # Información del recibo (compacta)
+        info_recibo = [
+            ["N° Recibo:", pago_data['numero_recibo'], "Fecha:", pago_data['fecha_pago'].strftime("%d/%m/%Y")],
+            ["Contrato:", venta_data['numero_contrato'], "", ""],
+        ]
+
+        tabla_info = Table(info_recibo, colWidths=[0.9*inch, 1.4*inch, 0.6*inch, 1*inch])
+        tabla_info.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (2, 0), (2, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 7),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ]))
+        elementos.append(tabla_info)
+        elementos.append(Spacer(1, 5))
+
+        # TABLA ÚNICA CON TODA LA INFORMACIÓN
+        datos_completos = [
+            # Datos del titular
+            ["Titular:", f"{cliente_data['nombre']} {cliente_data['apellido']}"],
+            # Información del nicho
+            ["Nicho:", nicho_data['numero']],
+            ["Sección:", nicho_data['seccion']],
+            ["Ubicación:", f"F{nicho_data['fila']}, C{nicho_data['columna']}"],
+            # Detalles del pago
+            ["Concepto:", pago_data['concepto']],
+            ["Método:", pago_data['metodo_pago']],
+            ["Monto Pagado:", f"${pago_data['monto']:,.2f}"],
+            ["Saldo Restante:", f"${venta_data['saldo_restante']:,.2f}"],
+        ]
+
+        tabla_completa = Table(datos_completos, colWidths=[1.1*inch, 3*inch])
+        tabla_completa.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 7),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
+            # Resaltar el monto pagado
+            ('BACKGROUND', (0, 6), (-1, 6), colors.lightblue),
+            ('FONTNAME', (0, 6), (-1, 6), 'Helvetica-Bold'),
+        ]))
+        elementos.append(tabla_completa)
+        elementos.append(Spacer(1, 8))
+
+        # Fecha de emisión
+        fecha_style = ParagraphStyle(
+            name='CompactDate',
+            parent=self.styles['Normal'],
+            fontSize=7,
+            alignment=TA_CENTER
+        )
+        fecha_emision = datetime.now().strftime("Emitido el %d/%m/%Y a las %H:%M")
+        elementos.append(Paragraph(f"<i>{fecha_emision}</i>", fecha_style))
+        elementos.append(Spacer(1, 6))
+
+        # Línea de firma solo del administrador
+        firmas_data = [
+            ['_' * 30],
+            ['Administrador'],
+        ]
+
+        tabla_firmas = Table(firmas_data, colWidths=[2.5*inch])
+        tabla_firmas.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTSIZE', (0, 0), (-1, -1), 7),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ]))
+        elementos.append(tabla_firmas)
+
+        return elementos
+
     def generar_recibo_pago(self, pago_data, venta_data, cliente_data, nicho_data, output_path=None):
         """
-        Generar recibo de pago en PDF
-        
+        Generar recibo de pago en PDF con dos copias en una hoja carta
+        (Una para la parroquia y otra para el titular)
+
         Args:
             pago_data: Diccionario con datos del pago
             venta_data: Diccionario con datos de la venta
@@ -85,115 +233,59 @@ class PDFGenerator:
 
         # Crear directorio si no existe
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        
-        # Crear documento
-        doc = SimpleDocTemplate(output_path, pagesize=letter,
-                              rightMargin=25, leftMargin=25,
-                              topMargin=25, bottomMargin=18)
-        
-        # Contenido del documento
+
+        # Crear documento con BaseDocTemplate para usar múltiples frames
+        doc = BaseDocTemplate(output_path, pagesize=letter)
+
+        # Definir dimensiones de la página
+        page_width, page_height = letter
+        margin = 25
+
+        # Crear dos frames: uno para la mitad superior y otro para la inferior
+        # Frame superior (COPIA PARROQUIA)
+        frame_superior = Frame(
+            margin,  # x1
+            page_height / 2 + 10,  # y1 (mitad inferior de la mitad superior para dejar espacio)
+            page_width - 2 * margin,  # width
+            page_height / 2 - margin - 10,  # height
+            id='superior',
+            showBoundary=0  # 0 para no mostrar bordes, 1 para debug
+        )
+
+        # Frame inferior (COPIA TITULAR)
+        frame_inferior = Frame(
+            margin,  # x1
+            margin,  # y1
+            page_width - 2 * margin,  # width
+            page_height / 2 - 10,  # height
+            id='inferior',
+            showBoundary=0
+        )
+
+        # Crear template de página con ambos frames
+        template = PageTemplate(id='recibo_doble', frames=[frame_superior, frame_inferior])
+        doc.addPageTemplates([template])
+
+        # Crear contenido del documento
         story = []
-        
-        # Encabezado con información de la parroquia
-        story.extend(self._crear_encabezado_parroquia())
-        
-        # Título del documento
-        story.append(Paragraph("RECIBO DE PAGO", self.styles['CustomTitle']))
-        story.append(Spacer(1, 20))
-        
-        # Información del recibo
-        info_recibo = [
-            ["Número de Recibo:", pago_data['numero_recibo']],
-            ["Fecha de Pago:", pago_data['fecha_pago'].strftime("%d/%m/%Y")],
-            ["Número de Contrato:", venta_data['numero_contrato']],
-        ]
-        
-        tabla_info = Table(info_recibo, colWidths=[2*inch, 3*inch])
-        tabla_info.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 12),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-        ]))
-        story.append(tabla_info)
-        story.append(Spacer(1, 20))
-        
-        # Información del cliente
-        story.append(Paragraph("DATOS DEL CLIENTE", self.styles['CustomSubtitle']))
-        
-        cliente_info = [
-            ["Nombre:", f"{cliente_data['nombre']} {cliente_data['apellido']}"],
-            ["Cédula:", cliente_data['cedula']],
-            ["Teléfono:", cliente_data.get('telefono', 'No registrado')],
-            ["Dirección:", cliente_data.get('direccion', 'No registrada')],
-        ]
-        
-        tabla_cliente = Table(cliente_info, colWidths=[1.5*inch, 4*inch])
-        tabla_cliente.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 1, colors.lightgrey),
-        ]))
-        story.append(tabla_cliente)
-        story.append(Spacer(1, 20))
-        
-        # Información del nicho
-        story.append(Paragraph("INFORMACIÓN DEL NICHO", self.styles['CustomSubtitle']))
-        
-        nicho_info = [
-            ["Número de Nicho:", nicho_data['numero']],
-            ["Sección:", nicho_data['seccion']],
-            ["Ubicación:", f"Fila {nicho_data['fila']}, Columna {nicho_data['columna']}"],
-            ["Precio Total:", f"${venta_data['precio_total']:,.2f}"],
-        ]
-        
-        tabla_nicho = Table(nicho_info, colWidths=[1.5*inch, 4*inch])
-        tabla_nicho.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 1, colors.lightgrey),
-        ]))
-        story.append(tabla_nicho)
-        story.append(Spacer(1, 20))
-        
-        # Detalles del pago
-        story.append(Paragraph("DETALLE DEL PAGO", self.styles['CustomSubtitle']))
-        
-        pago_info = [
-            ["Concepto:", pago_data['concepto']],
-            ["Método de Pago:", pago_data['metodo_pago']],
-            ["Monto Pagado:", f"${pago_data['monto']:,.2f}"],
-            ["Saldo Anterior:", f"${venta_data['saldo_anterior']:,.2f}"],
-            ["Saldo Restante:", f"${venta_data['saldo_restante']:,.2f}"],
-        ]
-        
-        tabla_pago = Table(pago_info, colWidths=[1.5*inch, 4*inch])
-        tabla_pago.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 1, colors.lightgrey),
-            # Resaltar el monto pagado
-            ('BACKGROUND', (0, 2), (-1, 2), colors.lightblue),
-            ('FONTNAME', (0, 2), (-1, 2), 'Helvetica-Bold'),
-        ]))
-        story.append(tabla_pago)
-        story.append(Spacer(1, 30))
-        
-        # Observaciones si existen
-        if pago_data.get('observaciones'):
-            story.append(Paragraph("OBSERVACIONES", self.styles['CustomSubtitle']))
-            story.append(Paragraph(pago_data['observaciones'], self.styles['InfoText']))
-            story.append(Spacer(1, 20))
-        
-        # Pie de página con firmas
-        story.extend(self._crear_pie_firmas())
-        
+
+        # Primer recibo (COPIA PARROQUIA) - se renderiza en frame superior
+        contenido_parroquia = self._crear_contenido_recibo(
+            pago_data, venta_data, cliente_data, nicho_data,
+            "═══ COPIA PARROQUIA ═══"
+        )
+        story.extend(contenido_parroquia)
+
+        # Frame break para pasar al siguiente frame (frame inferior)
+        story.append(Spacer(1, 0))  # Esto forzará el cambio de frame
+
+        # Segundo recibo (COPIA TITULAR) - se renderiza en frame inferior
+        contenido_titular = self._crear_contenido_recibo(
+            pago_data, venta_data, cliente_data, nicho_data,
+            "═══ COPIA TITULAR ═══"
+        )
+        story.extend(contenido_titular)
+
         # Generar PDF
         doc.build(story)
         return output_path

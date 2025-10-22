@@ -7,8 +7,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
 from sqlalchemy import func
-from database.models import (get_db_session, Cliente, Nicho, Venta, Beneficiario,
-                           generar_numero_contrato, buscar_nichos_disponibles)
+from database.models import (get_db_session, Cliente, Nicho, Venta, Beneficiario, Pago,
+                           generar_numero_contrato, generar_numero_recibo, buscar_nichos_disponibles)
 
 class VentasManager:
     def __init__(self, parent, update_status_callback):
@@ -207,7 +207,28 @@ class VentasManager:
                 
                 db.add(venta)
                 db.flush()  # Para obtener el ID de la venta
-                
+
+                # Crear recibo automático por el pago inicial
+                # Si es contado: recibo por el total
+                # Si es crédito: recibo por el enganche
+                monto_pago_inicial = dialog.result['precio_total'] if dialog.result['tipo_pago'] == 'contado' else dialog.result['enganche']
+                numero_recibo_generado = None
+
+                if monto_pago_inicial > 0:
+                    numero_recibo_generado = generar_numero_recibo()
+                    concepto_pago = "Pago total del nicho" if dialog.result['tipo_pago'] == 'contado' else "Pago de enganche"
+
+                    pago_inicial = Pago(
+                        venta_id=venta.id,
+                        numero_recibo=numero_recibo_generado,
+                        monto=monto_pago_inicial,
+                        fecha_pago=datetime.now(),
+                        metodo_pago="efectivo",  # Valor por defecto, se puede cambiar después
+                        concepto=concepto_pago,
+                        observaciones=f"Recibo generado automáticamente al crear la venta {numero_contrato}"
+                    )
+                    db.add(pago_inicial)
+
                 # Crear beneficiarios si los hay
                 if dialog.result.get('beneficiarios'):
                     for i, beneficiario_data in enumerate(dialog.result['beneficiarios'], 1):
@@ -220,17 +241,22 @@ class VentasManager:
                                 orden=i
                             )
                             db.add(beneficiario)
-                
+
                 # Marcar nicho como no disponible
                 nicho.disponible = False
                 
                 db.commit()
                 db.close()
-                
+
                 self.load_sales()
                 self.update_status("Venta creada exitosamente")
-                messagebox.showinfo("Éxito", 
-                    f"Venta creada exitosamente\nContrato: {numero_contrato}")
+
+                # Preparar mensaje de éxito
+                mensaje_exito = f"Venta creada exitosamente\nContrato: {numero_contrato}"
+                if numero_recibo_generado:
+                    mensaje_exito += f"\n\nRecibo generado automáticamente:\nN° Recibo: {numero_recibo_generado}\nMonto: ${monto_pago_inicial:,.2f}"
+
+                messagebox.showinfo("Éxito", mensaje_exito)
                 
             except Exception as e:
                 messagebox.showerror("Error", f"Error al crear venta: {str(e)}")
