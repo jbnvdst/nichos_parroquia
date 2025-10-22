@@ -16,4 +16,4 @@ nul
 *.pyc
 TODO.txt
 database/add_urnas_table.py
-ui/urnas_manager.py
+database/add_familia_column.py
