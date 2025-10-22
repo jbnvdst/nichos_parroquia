@@ -205,6 +205,12 @@ class PagosManager:
                 venta.actualizar_saldo()
                 venta.fecha_ultimo_pago = datetime.now()
 
+                # Manejar pago de mantenimiento
+                if dialog.result['concepto'] == 'Mantenimiento':
+                    venta.mantenimiento_pagado = True
+                    # Calcular próxima fecha de mantenimiento (1 año desde ahora)
+                    venta.fecha_proximo_mantenimiento = datetime.now() + timedelta(days=365)
+
                 # Cargar todas las relaciones necesarias antes de cerrar la sesión
                 cliente = venta.cliente
                 nicho = venta.nicho
@@ -756,11 +762,12 @@ class PagoDialog:
         concepto_combo = ttk.Combobox(main_frame, textvariable=self.concepto_var, width=27)
         concepto_combo['values'] = (
             'Abono a cuenta',
-            'Pago de enganche', 
+            'Pago de enganche',
             'Liquidación total',
             'Pago mensual',
             'Pago parcial',
-            'Ajuste de saldo'
+            'Ajuste de saldo',
+            'Mantenimiento'
         )
         concepto_combo.grid(row=8, column=1, sticky=(tk.W, tk.E), pady=5)
         

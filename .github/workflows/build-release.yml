@@ -58,6 +58,7 @@ jobs:
         pip install six==1.17.0
         pip install typing_extensions==4.15.0
         pip install tzdata==2025.2
+        pip install tkcalendar==1.6.1
 
     - name: Verificar instalaciones criticas
       run: |

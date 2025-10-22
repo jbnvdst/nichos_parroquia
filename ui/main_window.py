@@ -15,6 +15,7 @@ from ui.pagos_manager import PagosManager
 from ui.reportes_manager import ReportesManager
 from ui.busqueda_manager import BusquedaManager
 from ui.titulos_manager import TitulosManager
+from ui.urnas_manager import UrnasManager
 from backup.backup_manager import BackupManager
 from backup.scheduler import BackupScheduler
 
@@ -73,15 +74,16 @@ class MainWindow:
         
         # Botones de navegación
         buttons = [
-            ("🏠 Inicio", self.show_dashboard),
-            ("🏛️ Gestión de Nichos", self.show_nichos),
-            ("💰 Ventas", self.show_ventas),
-            ("💳 Pagos", self.show_pagos),
-            ("📋 Títulos de Propiedad", self.show_titulos),
-            ("🔍 Búsqueda", self.show_busqueda),
-            ("📊 Reportes", self.show_reportes),
-            ("💾 Respaldos", self.show_respaldos),
-            ("⚙️ Configuración", self.show_configuracion),
+            ("Inicio", self.show_dashboard),
+            ("Gestion de Nichos", self.show_nichos),
+            ("Ventas", self.show_ventas),
+            ("Pagos", self.show_pagos),
+            ("Titulos de Propiedad", self.show_titulos),
+            ("Gestion de Urnas", self.show_urnas),
+            ("Busqueda", self.show_busqueda),
+            ("Reportes", self.show_reportes),
+            ("Respaldos", self.show_respaldos),
+            ("Configuracion", self.show_configuracion),
         ]
         
         for i, (text, command) in enumerate(buttons):
@@ -123,6 +125,7 @@ class MainWindow:
         self.titulos_manager = TitulosManager(self.content_frame, self.update_status)
         self.reportes_manager = ReportesManager(self.content_frame, self.update_status)
         self.busqueda_manager = BusquedaManager(self.content_frame, self.update_status)
+        self.urnas_manager = UrnasManager(self.content_frame, self.update_status)
     
     def clear_content(self):
         """Limpiar el área de contenido"""
@@ -251,7 +254,13 @@ class MainWindow:
         self.clear_content()
         self.update_status("Gestión de Títulos de Propiedad")
         self.titulos_manager.show()
-    
+
+    def show_urnas(self):
+        """Mostrar gestión de urnas"""
+        self.clear_content()
+        self.update_status("Gestión de Urnas")
+        self.urnas_manager.show()
+
     def show_busqueda(self):
         """Mostrar búsqueda"""
         self.clear_content()

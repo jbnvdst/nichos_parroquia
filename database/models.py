@@ -92,12 +92,15 @@ class Venta(Base):
     fecha_ultimo_pago: Mapped[Optional[datetime]] = mapped_column(DateTime)
     familia: Mapped[Optional[str]] = mapped_column(String(100))
     observaciones: Mapped[Optional[str]] = mapped_column(Text)
-    
+    mantenimiento_pagado: Mapped[bool] = mapped_column(Boolean, default=False)
+    fecha_proximo_mantenimiento: Mapped[Optional[datetime]] = mapped_column(DateTime)
+
     # Relaciones
     cliente: Mapped["Cliente"] = relationship("Cliente", back_populates="ventas")
     nicho: Mapped["Nicho"] = relationship("Nicho", back_populates="ventas")
     pagos: Mapped[List["Pago"]] = relationship("Pago", back_populates="venta")
     beneficiarios: Mapped[List["Beneficiario"]] = relationship("Beneficiario", back_populates="venta")
+    urnas: Mapped[List["Urna"]] = relationship("Urna", back_populates="venta")
     
     def __repr__(self):
         return f"Venta(contrato='{self.numero_contrato}', cliente_id={self.cliente_id}, nicho_id={self.nicho_id})"
@@ -155,7 +158,7 @@ class Pago(Base):
 
 class Beneficiario(Base):
     __tablename__ = "beneficiarios"
-    
+
     id: Mapped[int] = mapped_column(primary_key=True)
     venta_id: Mapped[int] = mapped_column(ForeignKey("ventas.id"), nullable=False)
     titular_id: Mapped[int] = mapped_column(ForeignKey("clientes.id"), nullable=False)
@@ -163,14 +166,38 @@ class Beneficiario(Base):
     orden: Mapped[int] = mapped_column(Integer, nullable=False)  # 1 o 2 (máximo 2 beneficiarios)
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
     fecha_registro: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
-    
+
     # Relaciones
     venta: Mapped["Venta"] = relationship("Venta", back_populates="beneficiarios")
     titular: Mapped["Cliente"] = relationship("Cliente", foreign_keys=[titular_id], back_populates="beneficiarios_titulares")
     beneficiario_persona: Mapped["Cliente"] = relationship("Cliente", foreign_keys=[beneficiario_id], back_populates="beneficiarios_como_beneficiario")
-    
+
     def __repr__(self):
         return f"Beneficiario(venta_id={self.venta_id}, orden={self.orden}, activo={self.activo})"
+
+class Urna(Base):
+    __tablename__ = "urnas"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    venta_id: Mapped[int] = mapped_column(ForeignKey("ventas.id"), nullable=False)
+    numero_urna: Mapped[int] = mapped_column(Integer, nullable=False)  # Incrementa por nicho
+    nombre_difunto: Mapped[str] = mapped_column(String(100), nullable=False)
+    fecha_defuncion: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    fecha_deposito_urna: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    fecha_cremacion: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    nombre_depositante: Mapped[str] = mapped_column(String(100), nullable=False)
+    nombre_crematorio: Mapped[Optional[str]] = mapped_column(String(100))
+    oficialia_registro_civil: Mapped[Optional[str]] = mapped_column(String(100))
+    libro: Mapped[Optional[str]] = mapped_column(String(50))
+    acta: Mapped[Optional[str]] = mapped_column(String(50))
+    observaciones: Mapped[Optional[str]] = mapped_column(Text)
+    fecha_creacion: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+
+    # Relaciones
+    venta: Mapped["Venta"] = relationship("Venta", back_populates="urnas")
+
+    def __repr__(self):
+        return f"Urna(venta_id={self.venta_id}, numero_urna={self.numero_urna}, nombre_difunto='{self.nombre_difunto}')"
 
 # Funciones auxiliares para manejo de la base de datos
 def get_db_session():
@@ -278,9 +305,25 @@ def generar_numero_recibo():
             nuevo_numero = ultimo_numero + 1
         else:
             nuevo_numero = 1
-        
+
         # Formato: REC-YYYY-NNNN
         year = datetime.now().year
         return f"REC-{year}-{nuevo_numero:04d}"
+    finally:
+        db.close()
+
+def generar_numero_urna_para_nicho(nicho_id):
+    """Generar número de urna para un nicho específico (incrementa por nicho)"""
+    db = get_db_session()
+    try:
+        # Obtener todas las urnas para este nicho a través de las ventas
+        ultima_urna = db.query(Urna).join(Venta).filter(
+            Venta.nicho_id == nicho_id
+        ).order_by(Urna.numero_urna.desc()).first()
+
+        if ultima_urna:
+            return ultima_urna.numero_urna + 1
+        else:
+            return 1
     finally:
         db.close()

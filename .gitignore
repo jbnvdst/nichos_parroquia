@@ -15,3 +15,5 @@ criptas_backup_20251017_224400.db
 nul
 *.pyc
 TODO.txt
+database/add_urnas_table.py
+ui/urnas_manager.py
