@@ -333,22 +333,23 @@ class VentasManager:
                     return
             
             dialog = VentaDialog(self.parent, "Editar Venta", venta)
-            
+
             if dialog.result:
                 # Actualizar datos de la venta
+                venta.numero_contrato = dialog.result['numero_contrato'] or venta.numero_contrato
                 venta.precio_total = dialog.result['precio_total']
                 venta.enganche = dialog.result['enganche']
                 venta.saldo_restante = dialog.result['precio_total'] - dialog.result['enganche'] - venta.total_pagado
                 venta.tipo_pago = dialog.result['tipo_pago']
                 venta.familia = dialog.result.get('familia')
                 venta.observaciones = dialog.result.get('observaciones')
-                
+
                 # Actualizar estado de pago
                 venta.actualizar_saldo()
-                
+
                 db.commit()
                 db.close()
-                
+
                 self.load_sales()
                 self.update_status("Venta actualizada exitosamente")
                 messagebox.showinfo("Éxito", "Venta actualizada exitosamente")
@@ -591,6 +592,7 @@ class VentaDialog:
         self.direccion_var = tk.StringVar()
         
         # Variables para venta
+        self.numero_contrato_var = tk.StringVar()
         self.nicho_var = tk.StringVar()
         self.precio_var = tk.StringVar()
         self.enganche_var = tk.StringVar(value="0")
@@ -622,6 +624,7 @@ class VentaDialog:
             self.direccion_var.set(cliente.direccion or "")
         
         if self.venta:
+            self.numero_contrato_var.set(self.venta.numero_contrato)
             if self.venta.nicho:
                 self.nicho_var.set(f"{self.venta.nicho.numero} - {self.venta.nicho.seccion}")
             self.precio_var.set(str(self.venta.precio_total))
@@ -703,55 +706,64 @@ class VentaDialog:
     
     def create_nicho_widgets(self, parent):
         """Crear widgets para selección de nicho y datos de venta"""
-        ttk.Label(parent, text="Información de la Venta", 
+        ttk.Label(parent, text="Información de la Venta",
                  font=("Arial", 12, "bold")).grid(row=0, column=0, columnspan=2, pady=(0, 20))
-        
+
+        # Número de Contrato (solo visible al editar)
+        if self.venta:
+            ttk.Label(parent, text="Número de Contrato:").grid(row=1, column=0, sticky=tk.W, pady=5)
+            self.numero_contrato_entry = ttk.Entry(parent, textvariable=self.numero_contrato_var, width=30)
+            self.numero_contrato_entry.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5)
+            row_offset = 2
+        else:
+            row_offset = 1
+
         # Selección de nicho
-        ttk.Label(parent, text="Nicho:*").grid(row=1, column=0, sticky=tk.W, pady=5)
+        ttk.Label(parent, text="Nicho:*").grid(row=row_offset, column=0, sticky=tk.W, pady=5)
         nicho_frame = ttk.Frame(parent)
-        nicho_frame.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5)
-        
-        self.nicho_combo = ttk.Combobox(nicho_frame, textvariable=self.nicho_var, 
+        nicho_frame.grid(row=row_offset, column=1, sticky=(tk.W, tk.E), pady=5)
+
+        self.nicho_combo = ttk.Combobox(nicho_frame, textvariable=self.nicho_var,
                                        width=25, state="readonly")
         self.nicho_combo.pack(side=tk.LEFT)
         self.nicho_combo.bind('<<ComboboxSelected>>', self.on_nicho_selected)
-        
-        ttk.Button(nicho_frame, text="Actualizar", 
+
+        ttk.Button(nicho_frame, text="Actualizar",
                   command=self.update_nichos_list).pack(side=tk.LEFT, padx=(10, 0))
-        
+
         # Precio
-        ttk.Label(parent, text="Precio Total:*").grid(row=2, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(parent, textvariable=self.precio_var, width=30).grid(row=2, column=1, sticky=(tk.W, tk.E), pady=5)
-        
+        ttk.Label(parent, text="Precio Total:*").grid(row=row_offset+1, column=0, sticky=tk.W, pady=5)
+        ttk.Entry(parent, textvariable=self.precio_var, width=30).grid(row=row_offset+1, column=1, sticky=(tk.W, tk.E), pady=5)
+
         # Tipo de pago
-        ttk.Label(parent, text="Tipo de Pago:*").grid(row=3, column=0, sticky=tk.W, pady=5)
+        ttk.Label(parent, text="Tipo de Pago:*").grid(row=row_offset+2, column=0, sticky=tk.W, pady=5)
         tipo_frame = ttk.Frame(parent)
-        tipo_frame.grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5)
-        
-        ttk.Radiobutton(tipo_frame, text="Contado", variable=self.tipo_pago_var, 
+        tipo_frame.grid(row=row_offset+2, column=1, sticky=(tk.W, tk.E), pady=5)
+
+        ttk.Radiobutton(tipo_frame, text="Contado", variable=self.tipo_pago_var,
                        value="contado", command=self.on_tipo_pago_changed).pack(side=tk.LEFT)
-        ttk.Radiobutton(tipo_frame, text="Crédito", variable=self.tipo_pago_var, 
+        ttk.Radiobutton(tipo_frame, text="Crédito", variable=self.tipo_pago_var,
                        value="credito", command=self.on_tipo_pago_changed).pack(side=tk.LEFT, padx=(20, 0))
-        
+
         # Enganche (solo para crédito)
-        ttk.Label(parent, text="Enganche:").grid(row=4, column=0, sticky=tk.W, pady=5)
+        ttk.Label(parent, text="Enganche:").grid(row=row_offset+3, column=0, sticky=tk.W, pady=5)
         self.enganche_entry = ttk.Entry(parent, textvariable=self.enganche_var, width=30)
-        self.enganche_entry.grid(row=4, column=1, sticky=(tk.W, tk.E), pady=5)
+        self.enganche_entry.grid(row=row_offset+3, column=1, sticky=(tk.W, tk.E), pady=5)
         self.enganche_entry.bind('<KeyRelease>', self.calculate_saldo)
-        
+
         # Saldo restante
-        ttk.Label(parent, text="Saldo Restante:").grid(row=5, column=0, sticky=tk.W, pady=5)
+        ttk.Label(parent, text="Saldo Restante:").grid(row=row_offset+4, column=0, sticky=tk.W, pady=5)
         self.saldo_label = ttk.Label(parent, text="$0.00", font=("Arial", 10, "bold"))
-        self.saldo_label.grid(row=5, column=1, sticky=tk.W, pady=5)
+        self.saldo_label.grid(row=row_offset+4, column=1, sticky=tk.W, pady=5)
 
         # Familia (placa)
-        ttk.Label(parent, text="Familia (Placa):").grid(row=6, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(parent, textvariable=self.familia_var, width=30).grid(row=6, column=1, sticky=(tk.W, tk.E), pady=5)
+        ttk.Label(parent, text="Familia (Placa):").grid(row=row_offset+5, column=0, sticky=tk.W, pady=5)
+        ttk.Entry(parent, textvariable=self.familia_var, width=30).grid(row=row_offset+5, column=1, sticky=(tk.W, tk.E), pady=5)
 
         # Observaciones
-        ttk.Label(parent, text="Observaciones:").grid(row=7, column=0, sticky=(tk.W, tk.N), pady=5)
+        ttk.Label(parent, text="Observaciones:").grid(row=row_offset+6, column=0, sticky=(tk.W, tk.N), pady=5)
         self.observaciones_text = tk.Text(parent, height=3, width=30)
-        self.observaciones_text.grid(row=7, column=1, sticky=(tk.W, tk.E), pady=5)
+        self.observaciones_text.grid(row=row_offset+6, column=1, sticky=(tk.W, tk.E), pady=5)
         if self.observaciones_var.get():
             self.observaciones_text.insert("1.0", self.observaciones_var.get())
         
@@ -915,36 +927,55 @@ class VentaDialog:
         if not all([self.nombre_var.get().strip(), self.apellido_var.get().strip()]):
             messagebox.showerror("Error", "Nombre y apellido son obligatorios")
             return
-        
+
         # Validar datos de la venta
         if not self.nicho_var.get():
             messagebox.showerror("Error", "Debe seleccionar un nicho")
             return
-        
+
+        # Validar número de contrato al editar
+        if self.venta and not self.numero_contrato_var.get().strip():
+            messagebox.showerror("Error", "El número de contrato es obligatorio")
+            return
+
         try:
             precio_total = float(self.precio_var.get())
             enganche = float(self.enganche_var.get() or 0)
-            
+
             if precio_total <= 0:
                 raise ValueError("El precio debe ser mayor a 0")
-            
+
             if enganche < 0 or enganche > precio_total:
                 raise ValueError("El enganche debe estar entre 0 y el precio total")
-                
+
         except ValueError as e:
             messagebox.showerror("Error", f"Error en los datos: {str(e)}")
             return
-        
+
+        # Validar unicidad del número de contrato al editar
+        if self.venta:
+            numero_contrato = self.numero_contrato_var.get().strip()
+
+            # Validar que no exista otro contrato con el mismo número
+            if numero_contrato != self.venta.numero_contrato:
+                db = get_db_session()
+                venta_existente = db.query(Venta).filter(Venta.numero_contrato == numero_contrato).first()
+                db.close()
+
+                if venta_existente:
+                    messagebox.showerror("Error", f"Ya existe una venta con el número de contrato: {numero_contrato}")
+                    return
+
         # Obtener dirección del Text widget
         direccion = self.direccion_text.get("1.0", tk.END).strip()
         observaciones = self.observaciones_text.get("1.0", tk.END).strip()
-        
+
         # Obtener ID del nicho seleccionado
         nicho_id = self.get_selected_nicho_id()
         if not nicho_id:
             messagebox.showerror("Error", "No se pudo identificar el nicho seleccionado")
             return
-        
+
         self.result = {
             'cliente': {
                 'nombre': self.nombre_var.get().strip(),
@@ -960,9 +991,10 @@ class VentaDialog:
             'tipo_pago': self.tipo_pago_var.get(),
             'familia': self.familia_var.get().strip() or None,
             'observaciones': observaciones or None,
+            'numero_contrato': self.numero_contrato_var.get().strip() if self.venta else None,
             'beneficiarios': self.beneficiarios.copy()
         }
-        
+
         self.dialog.destroy()
     
     def get_selected_nicho_id(self):

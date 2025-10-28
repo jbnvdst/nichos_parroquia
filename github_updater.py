@@ -39,6 +39,7 @@ class GitHubUpdater:
     def get_latest_release(self):
         """
         Obtener información del último release desde GitHub
+        Si no hay releases, intenta obtener el último tag
 
         Returns:
             dict: Información del release o None si hay error
@@ -50,12 +51,48 @@ class GitHubUpdater:
             if response.status_code == 200:
                 self.latest_release = response.json()
                 return self.latest_release
+            elif response.status_code == 404:
+                # No hay releases publicados, intentar obtener el último tag
+                return self.get_latest_tag()
             else:
                 print(f"Error al obtener releases: {response.status_code}")
                 return None
 
         except requests.RequestException as e:
-            print(f"Error de conexión: {e}")
+            print(f"Error de conexión al verificar actualizaciones: {e}")
+            return None
+
+    def get_latest_tag(self):
+        """
+        Obtener información del último tag desde GitHub
+        Se usa como alternativa cuando no hay releases publicados
+
+        Returns:
+            dict: Información del tag formateado como release, o None si hay error
+        """
+        try:
+            url = f"{self.github_api_url}/tags"
+            response = requests.get(url, timeout=10)
+
+            if response.status_code == 200:
+                tags = response.json()
+                if tags:
+                    # Tomar el primer tag (más reciente)
+                    latest_tag = tags[0]
+                    # Formatear como release para compatibilidad
+                    formatted_release = {
+                        'tag_name': latest_tag.get('name', ''),
+                        'name': f"Tag: {latest_tag.get('name', '')}",
+                        'body': 'No hay información disponible (obtida desde tags)',
+                        'html_url': f"https://github.com/{self.repo_owner}/{self.repo_name}/releases/tag/{latest_tag.get('name', '')}",
+                        'published_at': None,
+                        'assets': []
+                    }
+                    self.latest_release = formatted_release
+                    return formatted_release
+            return None
+
+        except requests.RequestException as e:
             return None
 
     def compare_versions(self, version1, version2):
@@ -90,7 +127,7 @@ class GitHubUpdater:
         Verificar si hay actualizaciones disponibles
 
         Args:
-            silent: Si es True, no muestra mensajes si no hay actualizaciones
+            silent: Si es True, no muestra mensajes de error o confirmación
 
         Returns:
             tuple: (bool, dict) - (hay_actualizacion, info_release)
@@ -410,6 +447,7 @@ class GitHubUpdater:
     def check_updates_on_startup(self, parent_window):
         """
         Verificar actualizaciones al iniciar la aplicación (silenciosamente)
+        No muestra mensajes de error si no hay releases o hay problemas de conexión
 
         Args:
             parent_window: Ventana padre de la aplicación
@@ -417,11 +455,13 @@ class GitHubUpdater:
         def check_thread():
             try:
                 has_update, release = self.check_for_updates(silent=True)
-                if has_update:
+                if has_update and release:
                     # Mostrar notificación en la barra de estado o menú
                     parent_window.after(0, lambda: self.show_update_notification(parent_window, release))
-            except:
-                pass  # Silenciar errores en verificación automática
+            except Exception:
+                # Silenciar todos los errores en verificación automática
+                # Esto previene errores de consola si no hay releases o no hay conexión
+                pass
 
         thread = threading.Thread(target=check_thread, daemon=True)
         thread.start()
