@@ -4,7 +4,7 @@ Constantes de la aplicación
 """
 
 # Versión de la aplicación
-APP_VERSION = "1.1.1"
+APP_VERSION = "1.1.3"
 APP_NAME = "Sistema de Administración de Criptas"
 
 # Estados de pagos

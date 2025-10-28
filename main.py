@@ -26,7 +26,7 @@ from github_updater import GitHubUpdater
 
 class CriptasApp:
     # Versión de la aplicación (actualizar en cada release)
-    VERSION = "1.1.1"
+    VERSION = "1.1.3"
 
     def __init__(self):
         self.root = tk.Tk()
@@ -84,22 +84,49 @@ class CriptasApp:
             messagebox.showerror("Error", f"Error al inicializar la base de datos: {str(e)}")
 
     def migrate_database(self):
-        """Ejecutar migraciones de base de datos"""
+        """Ejecutar migraciones de base de datos de forma escalable"""
         try:
             db_path = "criptas.db"
             if os.path.exists(db_path):
                 conn = sqlite3.connect(db_path)
                 cursor = conn.cursor()
 
-                # Migración 1: Agregar columna 'familia' a la tabla 'ventas'
-                cursor.execute("PRAGMA table_info(ventas)")
-                columns = [column[1] for column in cursor.fetchall()]
+                # Definir migraciones por tabla
+                migrations = {
+                    'ventas': {
+                        'familia': 'VARCHAR(100)',
+                        'fecha_ultimo_pago': 'DATETIME',
+                        'mantenimiento_pagado': 'BOOLEAN DEFAULT 0',
+                        'fecha_proximo_mantenimiento': 'DATETIME'
+                    }
+                }
 
-                if 'familia' not in columns:
-                    print("Agregando columna 'familia' a la tabla ventas...")
-                    cursor.execute("ALTER TABLE ventas ADD COLUMN familia VARCHAR(100)")
-                    conn.commit()
-                    print("✓ Columna 'familia' agregada exitosamente")
+                # Aplicar migraciones
+                for table_name, columns_to_add in migrations.items():
+                    try:
+                        # Verificar si la tabla existe
+                        cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'")
+                        if not cursor.fetchone():
+                            print(f"⚠ La tabla '{table_name}' no existe aún (será creada por SQLAlchemy)")
+                            continue
+
+                        # Obtener columnas existentes
+                        cursor.execute(f"PRAGMA table_info({table_name})")
+                        existing_columns = [column[1] for column in cursor.fetchall()]
+
+                        # Agregar columnas faltantes
+                        for column_name, column_type in columns_to_add.items():
+                            if column_name not in existing_columns:
+                                try:
+                                    print(f"Agregando columna '{column_name}' a la tabla '{table_name}'...")
+                                    cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
+                                    conn.commit()
+                                    print(f"✓ Columna '{column_name}' agregada exitosamente")
+                                except sqlite3.OperationalError as e:
+                                    print(f"⚠ Error al agregar '{column_name}': {str(e)}")
+                                    conn.rollback()
+                    except Exception as e:
+                        print(f"⚠ Error en tabla '{table_name}': {str(e)}")
 
                 conn.close()
         except Exception as e:
