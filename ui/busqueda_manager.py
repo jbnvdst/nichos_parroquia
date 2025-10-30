@@ -169,10 +169,10 @@ class BusquedaManager:
         # Limpiar frame de campos específicos
         for widget in self.fields_frame.winfo_children():
             widget.destroy()
-        
+
         search_type = self.search_type.get()
-        
-        if search_type == 'clientes':
+
+        if search_type == 'titular':
             self.create_cliente_fields()
         elif search_type == 'nichos':
             self.create_nicho_fields()
@@ -546,12 +546,12 @@ class BusquedaManager:
                 
                 self.results_tree.insert('', 'end', values=values)
         
-        elif search_type == 'clientes':
+        elif search_type == 'titular':
             columns = ['nombre', 'cedula', 'telefono', 'email', 'ventas', 'fecha_registro']
             self.results_tree['columns'] = columns
             for col in columns:
                 self.results_tree.heading(col, text=col.replace('_', ' ').title())
-            
+
             for result in results:
                 values = tuple(result[col] for col in columns)
                 self.results_tree.insert('', 'end', values=values)
@@ -673,10 +673,10 @@ class BusquedaManager:
             messagebox.showerror("Error", f"Error en la búsqueda: {str(e)}")
     
     def search_by_cliente(self):
-        """Búsqueda rápida por nombre de cliente"""
+        """Búsqueda rápida por nombre de titular"""
         cliente = self.cliente_var.get().strip()
         if not cliente:
-            messagebox.showwarning("Advertencia", "Ingrese un nombre de cliente")
+            messagebox.showwarning("Advertencia", "Ingrese un nombre de titular")
             return
         
         try:
@@ -701,10 +701,10 @@ class BusquedaManager:
                         'fecha_registro': cli.fecha_registro.strftime('%d/%m/%Y')
                     })
                 
-                self.display_results(results, 'clientes')
-                self.update_status(f"Encontrados {len(results)} clientes")
+                self.display_results(results, 'titular')
+                self.update_status(f"Encontrados {len(results)} titulares")
             else:
-                self.results_label.config(text="No se encontraron clientes con ese criterio")
+                self.results_label.config(text="No se encontraron titulares con ese criterio")
                 for item in self.results_tree.get_children():
                     self.results_tree.delete(item)
             

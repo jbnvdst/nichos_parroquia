@@ -11,6 +11,7 @@ from sqlalchemy import func
 from database.models import (get_db_session, Venta, Pago, Cliente, Nicho,
                            generar_numero_recibo, buscar_venta_por_contrato)
 from reports.pdf_generator import PDFGenerator
+from tkcalendar import DateEntry
 
 class PagosManager:
     def __init__(self, parent, update_status_callback):
@@ -369,25 +370,29 @@ class PagosManager:
             _ = pago.venta.cliente.nombre_completo  # Forzar carga del cliente
             _ = pago.venta.nicho.numero             # Forzar carga del nicho
 
-            dialog = PagoDialog(self.parent, "Editar Pago", pago)
+            dialog = PagoDialog(self.parent, "Editar Pago", pago, is_edit=True)
             
             if dialog.result:
                 # Guardar monto anterior para recalcular saldo
                 monto_anterior = pago.monto
-                
+
                 # Actualizar datos del pago
                 pago.monto = dialog.result['monto']
                 pago.metodo_pago = dialog.result['metodo_pago']
                 pago.concepto = dialog.result['concepto']
                 pago.observaciones = dialog.result.get('observaciones')
-                
+
+                # Actualizar fecha si fue modificada
+                if 'fecha_pago' in dialog.result:
+                    pago.fecha_pago = dialog.result['fecha_pago']
+
                 # Recalcular saldo de la venta
                 venta = pago.venta
                 # Hacer flush para que los cambios estén disponibles en la sesión
                 db.flush()
                 # Actualizar saldo (esto recalcula desde cero, no necesitamos la diferencia)
                 venta.actualizar_saldo()
-                
+
                 db.commit()
                 db.close()
                 
@@ -643,15 +648,18 @@ class PagosManager:
 
 
 class PagoDialog:
-    def __init__(self, parent, title, pago=None):
+    def __init__(self, parent, title, pago=None, is_edit=False):
         self.result = None
         self.pago = pago
+        self.is_edit = is_edit
         self.venta_seleccionada = None  # Agregar atributo para la venta seleccionada
 
         # Crear ventana modal
         self.dialog = tk.Toplevel(parent)
         self.dialog.title(title)
-        self.dialog.geometry("500x600")
+        # Aumentar altura si es modo edición (para el campo de fecha)
+        geometry = "500x650" if is_edit else "500x600"
+        self.dialog.geometry(geometry)
         self.dialog.resizable(False, False)
         self.dialog.transient(parent)
         self.dialog.grab_set()
@@ -662,6 +670,7 @@ class PagoDialog:
         self.metodo_pago_var = tk.StringVar(value="efectivo")
         self.concepto_var = tk.StringVar(value="Abono a cuenta")
         self.observaciones_var = tk.StringVar()
+        self.fecha_pago_var = tk.StringVar()  # Variable para la fecha del pago
 
         # Variables para mostrar información de la venta
         self.cliente_info_var = tk.StringVar()
@@ -688,7 +697,9 @@ class PagoDialog:
             self.metodo_pago_var.set(self.pago.metodo_pago)
             self.concepto_var.set(self.pago.concepto)
             self.observaciones_var.set(self.pago.observaciones or "")
-            
+            # Cargar fecha del pago (formato: YYYY-MM-DD)
+            self.fecha_pago_var.set(self.pago.fecha_pago.strftime('%Y-%m-%d'))
+
             # Cargar información de la venta
             self.load_venta_info()
     
@@ -770,27 +781,50 @@ class PagoDialog:
             'Mantenimiento'
         )
         concepto_combo.grid(row=8, column=1, sticky=(tk.W, tk.E), pady=5)
-        
+
+        # Fecha del pago (solo en modo edición)
+        fecha_row = 9
+        if self.is_edit:
+            ttk.Label(main_frame, text="Fecha del Pago:").grid(row=9, column=0, sticky=tk.W, pady=5)
+            # Convertir la fecha string a objeto datetime si existe
+            fecha_inicial = datetime.now()
+            if self.fecha_pago_var.get():
+                try:
+                    fecha_inicial = datetime.strptime(self.fecha_pago_var.get(), '%Y-%m-%d')
+                except ValueError:
+                    fecha_inicial = datetime.now()
+
+            fecha_entry = DateEntry(main_frame, textvariable=self.fecha_pago_var,
+                                   year=fecha_inicial.year, month=fecha_inicial.month,
+                                   day=fecha_inicial.day, dateformat='%Y-%m-%d',
+                                   width=25, background='darkblue', foreground='white',
+                                   borderwidth=2, locale='es_ES')
+            fecha_entry.grid(row=9, column=1, sticky=(tk.W, tk.E), pady=5)
+            fecha_row = 10
+
         # Nuevo saldo después del pago
-        ttk.Label(main_frame, text="Nuevo Saldo:").grid(row=9, column=0, sticky=tk.W, pady=5)
-        self.nuevo_saldo_label = ttk.Label(main_frame, text="$0.00", 
+        ttk.Label(main_frame, text="Nuevo Saldo:").grid(row=fecha_row, column=0, sticky=tk.W, pady=5)
+        self.nuevo_saldo_label = ttk.Label(main_frame, text="$0.00",
                                         font=("Arial", 11, "bold"), foreground="blue")
-        self.nuevo_saldo_label.grid(row=9, column=1, sticky=tk.W, pady=5)
-        
+        self.nuevo_saldo_label.grid(row=fecha_row, column=1, sticky=tk.W, pady=5)
+
         # Observaciones
-        ttk.Label(main_frame, text="Observaciones:").grid(row=10, column=0, sticky=(tk.W, tk.N), pady=5)
+        obs_row = fecha_row + 1
+        ttk.Label(main_frame, text="Observaciones:").grid(row=obs_row, column=0, sticky=(tk.W, tk.N), pady=5)
         self.observaciones_text = tk.Text(main_frame, height=3, width=30)
-        self.observaciones_text.grid(row=10, column=1, sticky=(tk.W, tk.E), pady=5)
+        self.observaciones_text.grid(row=obs_row, column=1, sticky=(tk.W, tk.E), pady=5)
         if self.observaciones_var.get():
             self.observaciones_text.insert("1.0", self.observaciones_var.get())
-        
+
         # Nota de campos obligatorios
-        ttk.Label(main_frame, text="* Campos obligatorios", font=("Arial", 9), 
-                foreground="red").grid(row=11, column=0, columnspan=2, pady=10)
-        
+        nota_row = obs_row + 1
+        ttk.Label(main_frame, text="* Campos obligatorios", font=("Arial", 9),
+                foreground="red").grid(row=nota_row, column=0, columnspan=2, pady=10)
+
         # Botones
+        button_row = nota_row + 1
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=12, column=0, columnspan=2, pady=20)
+        button_frame.grid(row=button_row, column=0, columnspan=2, pady=20)
         
         ttk.Button(button_frame, text="Guardar Pago", command=self.save).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Cancelar", command=self.cancel).pack(side=tk.LEFT, padx=5)
@@ -997,7 +1031,21 @@ class PagoDialog:
         
         # Obtener observaciones del Text widget
         observaciones = self.observaciones_text.get("1.0", tk.END).strip()
-        
+
+        # Validar fecha si se está editando
+        fecha_pago = None
+        if self.is_edit:
+            fecha_str = self.fecha_pago_var.get().strip()
+            if not fecha_str:
+                messagebox.showerror("Error", "La fecha del pago es obligatoria")
+                return
+            try:
+                # DateEntry devuelve la fecha en formato YYYY-MM-DD
+                fecha_pago = datetime.strptime(fecha_str, '%Y-%m-%d')
+            except ValueError:
+                messagebox.showerror("Error", "Formato de fecha inválido")
+                return
+
         self.result = {
             'numero_contrato': self.numero_contrato_var.get().strip(),
             'monto': monto,
@@ -1005,7 +1053,11 @@ class PagoDialog:
             'concepto': self.concepto_var.get().strip(),
             'observaciones': observaciones if observaciones else None
         }
-        
+
+        # Agregar fecha si se está editando
+        if self.is_edit and fecha_pago:
+            self.result['fecha_pago'] = fecha_pago
+
         self.dialog.destroy()
     
     def cancel(self):
