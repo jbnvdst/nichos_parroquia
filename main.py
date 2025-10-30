@@ -26,7 +26,7 @@ from github_updater import GitHubUpdater
 
 class CriptasApp:
     # Versión de la aplicación (actualizar en cada release)
-    VERSION = "1.1.3"
+    VERSION = "1.1.5"
 
     def __init__(self):
         self.root = tk.Tk()
@@ -50,10 +50,13 @@ class CriptasApp:
         self.backup_manager = BackupManager()
 
         # Inicializar sistema de actualizaciones
+        # Obtener token de GitHub desde variable de entorno (opcional)
+        github_token = os.environ.get('GITHUB_TOKEN')
         self.updater = GitHubUpdater(
             repo_owner="jbnvdst",
             repo_name="nichos_parroquia",
-            current_version=self.VERSION
+            current_version=self.VERSION,
+            github_token=github_token
         )
 
         # Configurar respaldos automáticos

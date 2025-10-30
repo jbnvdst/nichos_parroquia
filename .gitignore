@@ -17,3 +17,5 @@ nul
 TODO.txt
 database/add_urnas_table.py
 database/add_familia_column.py
+debug_updates.py
+GITHUB_TOKEN_SETUP.md

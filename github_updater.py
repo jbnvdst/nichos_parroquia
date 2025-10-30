@@ -21,7 +21,7 @@ class GitHubUpdater:
     Verifica versiones, descarga e instala actualizaciones
     """
 
-    def __init__(self, repo_owner="jbnvdst", repo_name="nichos_parroquia", current_version="1.0.0"):
+    def __init__(self, repo_owner="jbnvdst", repo_name="nichos_parroquia", current_version="1.0.0", github_token=None):
         """
         Inicializar el actualizador
 
@@ -29,12 +29,28 @@ class GitHubUpdater:
             repo_owner: Usuario u organización dueña del repositorio
             repo_name: Nombre del repositorio
             current_version: Versión actual de la aplicación
+            github_token: Token de GitHub para repositorios privados (opcional)
         """
         self.repo_owner = repo_owner
         self.repo_name = repo_name
         self.current_version = current_version
         self.github_api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}"
+        self.github_token = github_token
         self.latest_release = None
+        self.headers = self._get_headers()
+
+    def _get_headers(self):
+        """
+        Obtener headers para las requests a GitHub API
+        Si hay token de autenticación, se incluye en el header Authorization
+
+        Returns:
+            dict: Headers con autenticación (si está disponible)
+        """
+        headers = {'Accept': 'application/vnd.github.v3+json'}
+        if self.github_token:
+            headers['Authorization'] = f'token {self.github_token}'
+        return headers
 
     def get_latest_release(self):
         """
@@ -46,7 +62,7 @@ class GitHubUpdater:
         """
         try:
             url = f"{self.github_api_url}/releases/latest"
-            response = requests.get(url, timeout=10)
+            response = requests.get(url, headers=self.headers, timeout=10)
 
             if response.status_code == 200:
                 self.latest_release = response.json()
@@ -72,7 +88,7 @@ class GitHubUpdater:
         """
         try:
             url = f"{self.github_api_url}/tags"
-            response = requests.get(url, timeout=10)
+            response = requests.get(url, headers=self.headers, timeout=10)
 
             if response.status_code == 200:
                 tags = response.json()
