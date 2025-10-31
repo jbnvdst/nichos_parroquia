@@ -137,7 +137,7 @@ class VentasManager:
                 cliente_nombre = venta.cliente.nombre_completo if venta.cliente else "N/A"
                 nicho_numero = venta.nicho.numero if venta.nicho else "N/A"
                 estado = "Pagado" if venta.pagado_completamente else "Pendiente"
-                
+
                 values = (
                     venta.numero_contrato,
                     venta.fecha_venta.strftime("%d/%m/%Y"),
@@ -148,8 +148,9 @@ class VentasManager:
                     f"${venta.saldo_restante:,.2f}",
                     estado
                 )
-                
-                item = self.tree.insert('', 'end', values=values)
+
+                # Usar el ID de la venta como identificador del item en el TreeView
+                item = self.tree.insert('', 'end', iid=str(venta.id), values=values)
                 
                 # Colorear según estado
                 if venta.pagado_completamente:
@@ -289,13 +290,13 @@ class VentasManager:
         if not selected:
             messagebox.showwarning("Advertencia", "Seleccione una venta para ver detalles")
             return
-        
-        item = self.tree.item(selected[0])
-        numero_contrato = item['values'][0]
-        
+
+        # Obtener el ID de la venta desde el identificador del item (iid)
+        venta_id = int(selected[0])
+
         try:
             db = get_db_session()
-            venta = db.query(Venta).filter(Venta.numero_contrato == numero_contrato).first()
+            venta = db.query(Venta).filter(Venta.id == venta_id).first()
             
             if venta:
                 VentaDetailsDialog(self.parent, venta)
@@ -311,13 +312,13 @@ class VentasManager:
         if not selected:
             messagebox.showwarning("Advertencia", "Seleccione una venta para editar")
             return
-        
-        item = self.tree.item(selected[0])
-        numero_contrato = item['values'][0]
-        
+
+        # Obtener el ID de la venta desde el identificador del item (iid)
+        venta_id = int(selected[0])
+
         try:
             db = get_db_session()
-            venta = db.query(Venta).filter(Venta.numero_contrato == numero_contrato).first()
+            venta = db.query(Venta).filter(Venta.id == venta_id).first()
             
             if not venta:
                 messagebox.showerror("Error", "Venta no encontrada")
@@ -365,21 +366,21 @@ class VentasManager:
         if not selected:
             messagebox.showwarning("Advertencia", "Seleccione una venta para anular")
             return
-        
+
         # Confirmar anulación
-        response = messagebox.askyesno("Confirmación", 
+        response = messagebox.askyesno("Confirmación",
             "¿Está seguro de que desea anular esta venta?\n"
             "Esta acción liberará el nicho y no se puede deshacer.")
-        
+
         if not response:
             return
-        
-        item = self.tree.item(selected[0])
-        numero_contrato = item['values'][0]
-        
+
+        # Obtener el ID de la venta desde el identificador del item (iid)
+        venta_id = int(selected[0])
+
         try:
             db = get_db_session()
-            venta = db.query(Venta).filter(Venta.numero_contrato == numero_contrato).first()
+            venta = db.query(Venta).filter(Venta.id == venta_id).first()
             
             if not venta:
                 messagebox.showerror("Error", "Venta no encontrada")
@@ -446,7 +447,7 @@ class VentasManager:
                 cliente_nombre = venta.cliente.nombre_completo if venta.cliente else "N/A"
                 nicho_numero = venta.nicho.numero if venta.nicho else "N/A"
                 estado = "Pagado" if venta.pagado_completamente else "Pendiente"
-                
+
                 values = (
                     venta.numero_contrato,
                     venta.fecha_venta.strftime("%d/%m/%Y"),
@@ -457,8 +458,8 @@ class VentasManager:
                     f"${venta.saldo_restante:,.2f}",
                     estado
                 )
-                
-                self.tree.insert('', 'end', values=values)
+
+                self.tree.insert('', 'end', iid=str(venta.id), values=values)
             
             db.close()
             self.update_status(f"Búsqueda: {len(ventas)} resultados")
@@ -507,7 +508,7 @@ class VentasManager:
                 cliente_nombre = venta.cliente.nombre_completo if venta.cliente else "N/A"
                 nicho_numero = venta.nicho.numero if venta.nicho else "N/A"
                 estado = "Pagado" if venta.pagado_completamente else "Pendiente"
-                
+
                 values = (
                     venta.numero_contrato,
                     venta.fecha_venta.strftime("%d/%m/%Y"),
@@ -518,8 +519,8 @@ class VentasManager:
                     f"${venta.saldo_restante:,.2f}",
                     estado
                 )
-                
-                self.tree.insert('', 'end', values=values)
+
+                self.tree.insert('', 'end', iid=str(venta.id), values=values)
             
             db.close()
             self.update_status(f"Filtro aplicado: {len(ventas)} resultados")

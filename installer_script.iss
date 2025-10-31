@@ -3,7 +3,7 @@
 ; Requiere Inno Setup 6.0 o superior
 
 #define MyAppName "Sistema de Criptas"
-#define MyAppVersion "1.1.6"
+#define MyAppVersion "1.1.7"
 #define MyAppPublisher "Parroquia"
 #define MyAppURL "https://github.com/jbnvdst/nichos_parroquia"
 #define MyAppExeName "SistemaCriptas.exe"
