@@ -403,9 +403,17 @@ class GitHubUpdater:
         file_name = asset.get('name')
         file_size = asset.get('size', 0)
 
-        # Crear directorio temporal
-        temp_dir = tempfile.gettempdir()
-        download_path = os.path.join(temp_dir, file_name)
+        # Crear directorio permanente en AppData para descargas de actualización
+        # Esto evita conflictos con carpetas temporales inestables de PyInstaller
+        updates_dir = os.path.join(
+            os.path.expanduser("~"),
+            "AppData",
+            "Local",
+            "SistemaCriptas",
+            "Updates"
+        )
+        os.makedirs(updates_dir, exist_ok=True)
+        download_path = os.path.join(updates_dir, file_name)
 
         try:
             # Descargar archivo
@@ -437,8 +445,20 @@ class GitHubUpdater:
 
                         progress_window.update()
 
-            # Descarga completada
+            # Descarga completada - Validar integridad
             progress_bar['value'] = 100
+
+            # Verificar que el archivo se descargó completamente
+            actual_size = os.path.getsize(download_path)
+            if file_size > 0 and actual_size != file_size:
+                os.remove(download_path)
+                raise Exception(
+                    f"Descarga incompleta.\n"
+                    f"Esperado: {file_size / (1024*1024):.1f} MB\n"
+                    f"Obtenido: {actual_size / (1024*1024):.1f} MB\n\n"
+                    f"Por favor, intenta de nuevo."
+                )
+
             status_label.config(text="Descarga completada. Iniciando instalador...")
             progress_window.update()
 
