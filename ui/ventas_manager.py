@@ -126,7 +126,7 @@ class VentasManager:
         """Cargar ventas desde la base de datos"""
         try:
             db = get_db_session()
-            ventas = db.query(Venta).order_by(Venta.fecha_venta.desc()).all()
+            ventas = db.query(Venta).join(Nicho).order_by(Nicho.numero).all()
             
             # Limpiar TreeView
             for item in self.tree.get_children():
@@ -437,12 +437,12 @@ class VentasManager:
                 Nicho.numero.contains(search_term)
             )
             
-            ventas = query.order_by(Venta.fecha_venta.desc()).all()
-            
+            ventas = query.order_by(Nicho.numero).all()
+
             # Actualizar TreeView
             for item in self.tree.get_children():
                 self.tree.delete(item)
-            
+
             for venta in ventas:
                 cliente_nombre = venta.cliente.nombre_completo if venta.cliente else "N/A"
                 nicho_numero = venta.nicho.numero if venta.nicho else "N/A"
@@ -460,7 +460,7 @@ class VentasManager:
                 )
 
                 self.tree.insert('', 'end', iid=str(venta.id), values=values)
-            
+
             db.close()
             self.update_status(f"Búsqueda: {len(ventas)} resultados")
             
@@ -497,8 +497,8 @@ class VentasManager:
                 query = query.filter(Venta.pagado_completamente == True)
             elif filter_value == "Pendientes":
                 query = query.filter(Venta.pagado_completamente == False)
-            
-            ventas = query.order_by(Venta.fecha_venta.desc()).all()
+
+            ventas = query.order_by(Nicho.numero).all()
             
             # Actualizar TreeView
             for item in self.tree.get_children():

@@ -1272,12 +1272,13 @@ class VentaSelectionDialog:
             # Limpiar TreeView
             for item in self.tree.get_children():
                 self.tree.delete(item)
-            
+            self.venta_ids.clear()
+
             # Agregar resultados
             for venta in ventas:
                 estado = "Pagado" if venta.pagado_completamente else "Pendiente"
                 tag = 'pagado' if venta.pagado_completamente else 'pendiente'
-                
+
                 values = (
                     venta.numero_contrato,
                     venta.cliente.nombre_completo,
@@ -1286,9 +1287,9 @@ class VentaSelectionDialog:
                     f"${venta.saldo_restante:,.2f}",
                     estado
                 )
-                
+
                 item = self.tree.insert('', 'end', values=values, tags=(tag,))
-                self.tree.set(item, '#0', venta.id)
+                self.venta_ids[item] = venta.id
             
             db.close()
             
