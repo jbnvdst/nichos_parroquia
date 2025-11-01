@@ -10,16 +10,14 @@ import sqlite3
 from datetime import datetime
 import json
 from pathlib import Path
+from config.paths import AppPaths
 
 class BackupManager:
     def __init__(self):
-        self.backup_dir = "backups"
-        self.db_path = "criptas.db"
-        self.config_file = "backup_config.json"
-        
-        # Crear directorio de respaldos si no existe
-        os.makedirs(self.backup_dir, exist_ok=True)
-        
+        self.backup_dir = AppPaths.get_backups_dir()
+        self.db_path = AppPaths.get_database_path()
+        self.config_file = AppPaths.get_backup_config_file_path()
+
         # Cargar configuración
         self.config = self.load_config()
     

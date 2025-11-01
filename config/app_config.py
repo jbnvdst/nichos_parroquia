@@ -6,10 +6,11 @@ Configuración de la aplicación del sistema de criptas
 import json
 import os
 from pathlib import Path
+from config.paths import AppPaths
 
 class AppConfig:
     def __init__(self):
-        self.config_file = "app_config.json"
+        self.config_file = AppPaths.get_config_file_path()
         self.config = self.load_config()
     
     def load_config(self):
@@ -177,19 +178,14 @@ class AppConfig:
     
     def create_directories(self):
         """Crear directorios necesarios"""
-        directories = [
-            self.get("pdf", "output_dir_recibos", "recibos"),
-            self.get("pdf", "output_dir_titulos", "titulos"),
-            self.get("pdf", "output_dir_reportes", "reportes"),
-            self.get("backup", "directory", "backups"),
-            "assets",
-            "templates",
-            "logs",
-            "database"
-        ]
-        
-        for directory in directories:
-            os.makedirs(directory, exist_ok=True)
+        # Usar AppPaths para crear directorios en el lugar correcto
+        AppPaths.initialize_all_directories()
+
+        # Actualizar la configuración con las rutas correctas
+        self.config["pdf"]["output_dir_recibos"] = AppPaths.get_recibos_dir()
+        self.config["pdf"]["output_dir_titulos"] = AppPaths.get_titulos_dir()
+        self.config["pdf"]["output_dir_reportes"] = AppPaths.get_reportes_dir()
+        self.config["backup"]["directory"] = AppPaths.get_backups_dir()
     
     def validate_config(self):
         """Validar configuración"""

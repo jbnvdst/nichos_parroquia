@@ -7,15 +7,19 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, 
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
 from datetime import datetime
 from typing import List, Optional
+import os
 
 import shortuuid
+from config.paths import AppPaths
 
 def generar_cedula_automatica():
     """Generar cédula automática usando shortuuid"""
     return shortuuid.uuid()[:12].upper()
 
 # Configuración de la base de datos
-DATABASE_URL = "sqlite:///criptas.db"
+# Usar la ruta de AppPaths para que funcione con instalación para todos los usuarios
+_db_path = AppPaths.get_database_path()
+DATABASE_URL = f"sqlite:///{_db_path}"
 engine = create_engine(DATABASE_URL, echo=False)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

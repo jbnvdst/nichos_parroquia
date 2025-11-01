@@ -17,6 +17,7 @@ import schedule
 import time
 
 # Importaciones de nuestros módulos
+from config.paths import AppPaths
 from database.models import Base, engine, SessionLocal
 from database.models import Nicho, Cliente, Venta, Pago, Beneficiario
 from ui.main_window import MainWindow
@@ -26,13 +27,16 @@ from github_updater import GitHubUpdater
 
 class CriptasApp:
     # Versión de la aplicación (actualizar en cada release)
-    VERSION = "1.1.7"
+    VERSION = "1.1.8"
 
     def __init__(self):
         self.root = tk.Tk()
         self.root.title(f"Sistema de Administración de Criptas - Parroquia v{self.VERSION}")
         self.root.geometry("1536x864")
         self.root.configure(bg='#f0f0f0')
+
+        # Inicializar directorios de la aplicación (PRIMERO, antes de cualquier otra cosa)
+        AppPaths.initialize_all_directories()
 
         # Configurar estilo
         self.setup_style()

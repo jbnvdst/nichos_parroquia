@@ -19,3 +19,10 @@ database/add_urnas_table.py
 database/add_familia_column.py
 debug_updates.py
 GITHUB_TOKEN_SETUP.md
+INSTALACION.txt
+LICENSE.txt
+README.txt
+version_info.txt
+/build/SistemaCriptas
+/dist
+SistemaCriptas.spec

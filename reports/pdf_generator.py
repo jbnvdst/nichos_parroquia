@@ -11,6 +11,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY
 from datetime import datetime
 import os
+from config.paths import AppPaths
 
 class PDFGenerator:
     def __init__(self):
@@ -226,13 +227,8 @@ class PDFGenerator:
         """
         if not output_path:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_path = f"recibos/recibo_{pago_data['numero_recibo']}_{timestamp}.pdf"
-
-        # Convertir a ruta absoluta
-        output_path = os.path.abspath(output_path)
-
-        # Crear directorio si no existe
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            recibos_dir = AppPaths.get_recibos_dir()
+            output_path = os.path.join(recibos_dir, f"recibo_{pago_data['numero_recibo']}_{timestamp}.pdf")
 
         # Crear documento con BaseDocTemplate para usar múltiples frames
         doc = BaseDocTemplate(output_path, pagesize=letter)
@@ -303,13 +299,8 @@ class PDFGenerator:
         """
         if not output_path:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_path = f"titulos/titulo_{venta_data['numero_contrato']}_{timestamp}.pdf"
-
-        # Convertir a ruta absoluta
-        output_path = os.path.abspath(output_path)
-
-        # Crear directorio si no existe
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            titulos_dir = AppPaths.get_titulos_dir()
+            output_path = os.path.join(titulos_dir, f"titulo_{venta_data['numero_contrato']}_{timestamp}.pdf")
         
         # Crear documento
         doc = SimpleDocTemplate(output_path, pagesize=letter,
@@ -483,10 +474,8 @@ class PDFGenerator:
         """Generar reporte de movimientos en PDF"""
         if not output_path:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_path = f"reportes/reporte_movimientos_{timestamp}.pdf"
-
-        # Crear directorio si no existe
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            reportes_dir = AppPaths.get_reportes_dir()
+            output_path = os.path.join(reportes_dir, f"reporte_movimientos_{timestamp}.pdf")
 
         # Crear documento
         doc = SimpleDocTemplate(output_path, pagesize=letter,
