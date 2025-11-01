@@ -16,7 +16,7 @@ class InstallerBuilder:
     Incluye compilación del ejecutable y creación del instalador
     """
 
-    def __init__(self, version="1.1.8"):
+    def __init__(self, version="1.1.9"):
         """
         Inicializar el constructor
 
@@ -807,7 +807,7 @@ def main():
     parser.add_argument(
         "--version",
         "-v",
-        default="1.1.8",
+        default="1.1.9",
         help="Versión de la aplicación (formato: X.Y.Z)"
     )
     parser.add_argument(
