@@ -244,10 +244,13 @@ class PagosManager:
                 'observaciones': pago.observaciones
             }
             
+            # Si es pago de mantenimiento, no afecta el saldo de la venta
+            saldo_anterior = venta.saldo_restante if pago.concepto == 'Mantenimiento' else venta.saldo_restante + pago.monto
+
             venta_data = {
                 'numero_contrato': venta.numero_contrato,
                 'precio_total': venta.precio_total,
-                'saldo_anterior': venta.saldo_restante + pago.monto,
+                'saldo_anterior': saldo_anterior,
                 'saldo_restante': venta.saldo_restante,
                 'pagado_completamente': venta.pagado_completamente
             }
@@ -432,13 +435,20 @@ class PagosManager:
                 db.close()
                 return
             
-            # Ajustar saldo de la venta
+            # Guardar información para revertir el mantenimiento si es necesario
             venta = pago.venta
-            venta.saldo_restante += pago.monto
-            venta.pagado_completamente = False
-            
+            es_mantenimiento = pago.concepto == 'Mantenimiento'
+
             # Eliminar pago
             db.delete(pago)
+
+            # Si era un pago de mantenimiento, revertir el estado de mantenimiento
+            if es_mantenimiento:
+                venta.mantenimiento_pagado = False
+                venta.fecha_proximo_mantenimiento = None
+
+            # Actualizar saldo de la venta (automáticamente excluye pagos de mantenimiento)
+            venta.actualizar_saldo()
             
             db.commit()
             db.close()
@@ -1016,8 +1026,9 @@ class PagoDialog:
             messagebox.showerror("Error", "El monto debe ser un número válido mayor a 0")
             return
         
-        # Validar que el monto no exceda el saldo pendiente (opcional - permitir sobrepagos)
-        if self.venta_seleccionada:
+        # Validar que el monto no exceda el saldo pendiente (solo para pagos que NO sean mantenimiento)
+        concepto = self.concepto_var.get().strip()
+        if self.venta_seleccionada and concepto != 'Mantenimiento':
             try:
                 saldo_actual = float(self.venta_seleccionada.saldo_restante)
                 if monto > saldo_actual * 1.1:  # Permitir 10% de margen
@@ -1441,10 +1452,13 @@ OBSERVACIONES
                 'observaciones': self.pago.observaciones
             }
             
+            # Si es pago de mantenimiento, no afecta el saldo de la venta
+            saldo_anterior = self.pago.venta.saldo_restante if self.pago.concepto == 'Mantenimiento' else self.pago.venta.saldo_restante + self.pago.monto
+
             venta_data = {
                 'numero_contrato': self.pago.venta.numero_contrato,
                 'precio_total': self.pago.venta.precio_total,
-                'saldo_anterior': self.pago.venta.saldo_restante + self.pago.monto,
+                'saldo_anterior': saldo_anterior,
                 'saldo_restante': self.pago.venta.saldo_restante,
                 'pagado_completamente': self.pago.venta.pagado_completamente
             }

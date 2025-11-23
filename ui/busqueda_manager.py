@@ -7,12 +7,15 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
 from database.models import get_db_session, Cliente, Nicho, Venta, Pago
+from ui.ventas_manager import VentaDetailsDialog
 
 class BusquedaManager:
     def __init__(self, parent, update_status_callback):
         self.parent = parent
         self.update_status = update_status_callback
         self.results_tree = None
+        self.current_search_type = None  # Para rastrear el tipo de búsqueda actual
+        self.results_data = []  # Para almacenar datos completos de resultados
         
     def show(self):
         """Mostrar interfaz de búsqueda"""
@@ -513,7 +516,11 @@ class BusquedaManager:
         # Limpiar resultados anteriores
         for item in self.results_tree.get_children():
             self.results_tree.delete(item)
-        
+
+        # Guardar tipo de búsqueda actual y datos
+        self.current_search_type = search_type
+        self.results_data = results
+
         if not results:
             self.results_label.config(text="No se encontraron resultados")
             return
@@ -736,10 +743,133 @@ class BusquedaManager:
         if not selected:
             messagebox.showwarning("Advertencia", "Seleccione un elemento para ver detalles")
             return
-        
-        # Aquí implementarías la lógica para mostrar detalles
-        # dependiendo del tipo de resultado seleccionado
-        messagebox.showinfo("Información", "Funcionalidad de detalles próximamente")
+
+        if not self.current_search_type or not self.results_data:
+            messagebox.showwarning("Advertencia", "No hay datos disponibles")
+            return
+
+        try:
+            # Obtener el índice del elemento seleccionado
+            item_index = self.results_tree.index(selected[0])
+            result_data = self.results_data[item_index]
+
+            db = get_db_session()
+
+            # Determinar el tipo de resultado y mostrar los detalles apropiados
+            if self.current_search_type == 'todo':
+                # Para búsqueda general, verificar el tipo en los datos
+                tipo = result_data.get('tipo')
+                result_id = result_data.get('id')
+
+                if tipo == 'Venta':
+                    venta = db.query(Venta).filter(Venta.id == result_id).first()
+                    if venta:
+                        VentaDetailsDialog(self.parent, venta)
+                    else:
+                        messagebox.showerror("Error", "No se encontró la venta")
+
+                elif tipo == 'Nicho':
+                    nicho = db.query(Nicho).filter(Nicho.id == result_id).first()
+                    if nicho and nicho.ventas:
+                        # Mostrar detalles de la venta asociada
+                        VentaDetailsDialog(self.parent, nicho.ventas[0])
+                    elif nicho:
+                        messagebox.showinfo("Información",
+                            f"Nicho {nicho.numero} - Estado: {'Disponible' if nicho.disponible else 'Vendido'}\n"
+                            f"Sección: {nicho.seccion}\n"
+                            f"Ubicación: Fila {nicho.fila}, Columna {nicho.columna}\n"
+                            f"Precio: ${nicho.precio:,.2f}" if nicho.precio else "Sin precio"
+                        )
+                    else:
+                        messagebox.showerror("Error", "No se encontró el nicho")
+
+                elif tipo == 'Titular':
+                    cliente = db.query(Cliente).filter(Cliente.id == result_id).first()
+                    if cliente:
+                        ventas_info = "\n".join([f"- Contrato {v.numero_contrato}" for v in cliente.ventas])
+                        messagebox.showinfo("Detalles del Cliente",
+                            f"Nombre: {cliente.nombre_completo}\n"
+                            f"Cédula: {cliente.cedula}\n"
+                            f"Teléfono: {cliente.telefono or 'No registrado'}\n"
+                            f"Email: {cliente.email or 'No registrado'}\n"
+                            f"Dirección: {cliente.direccion or 'No registrada'}\n\n"
+                            f"Ventas:\n{ventas_info if ventas_info else 'Sin ventas'}"
+                        )
+                    else:
+                        messagebox.showerror("Error", "No se encontró el cliente")
+
+                elif tipo == 'Pago':
+                    pago = db.query(Pago).filter(Pago.id == result_id).first()
+                    if pago:
+                        # Mostrar los detalles de la venta asociada al pago
+                        VentaDetailsDialog(self.parent, pago.venta)
+                    else:
+                        messagebox.showerror("Error", "No se encontró el pago")
+
+            elif self.current_search_type == 'ventas':
+                # Para búsqueda de ventas, mostrar directamente el detalle
+                venta_id = result_data.get('id')
+                venta = db.query(Venta).filter(Venta.id == venta_id).first()
+                if venta:
+                    VentaDetailsDialog(self.parent, venta)
+                else:
+                    messagebox.showerror("Error", "No se encontró la venta")
+
+            elif self.current_search_type == 'nichos':
+                # Para búsqueda de nichos, obtener la venta asociada
+                nicho_id = result_data.get('id')
+                nicho = db.query(Nicho).filter(Nicho.id == nicho_id).first()
+                if nicho and nicho.ventas:
+                    # Mostrar detalles de la venta asociada
+                    VentaDetailsDialog(self.parent, nicho.ventas[0])
+                elif nicho:
+                    precio_text = f"${nicho.precio:,.2f}" if nicho.precio is not None else "Sin precio"
+                    messagebox.showinfo("Detalles del Nicho",
+                        f"Número: {nicho.numero}\n"
+                        f"Sección: {nicho.seccion}\n"
+                        f"Ubicación: Fila {nicho.fila}, Columna {nicho.columna}\n"
+                        f"Precio: {precio_text}\n"
+                        f"Estado: {'Disponible' if nicho.disponible else 'Vendido'}\n"
+                        f"Descripción: {nicho.descripcion or 'Sin descripción'}\n\n"
+                        f"Este nicho no tiene ventas asociadas."
+                    )
+                else:
+                    messagebox.showerror("Error", "No se encontró el nicho")
+
+            elif self.current_search_type == 'titular':
+                # Para búsqueda de clientes
+                cliente_id = result_data.get('id')
+                cliente = db.query(Cliente).filter(Cliente.id == cliente_id).first()
+                if cliente:
+                    ventas_info = "\n".join([f"- Contrato {v.numero_contrato} (${v.precio_total:,.2f})" for v in cliente.ventas])
+                    messagebox.showinfo("Detalles del Cliente",
+                        f"Nombre: {cliente.nombre_completo}\n"
+                        f"Cédula: {cliente.cedula}\n"
+                        f"Teléfono: {cliente.telefono or 'No registrado'}\n"
+                        f"Email: {cliente.email or 'No registrado'}\n"
+                        f"Dirección: {cliente.direccion or 'No registrada'}\n"
+                        f"Fecha de Registro: {cliente.fecha_registro.strftime('%d/%m/%Y')}\n\n"
+                        f"Ventas ({len(cliente.ventas)}):\n{ventas_info if ventas_info else 'Sin ventas'}"
+                    )
+                else:
+                    messagebox.showerror("Error", "No se encontró el cliente")
+
+            elif self.current_search_type == 'pagos':
+                # Para búsqueda de pagos, mostrar la venta asociada
+                pago_id = result_data.get('id')
+                pago = db.query(Pago).filter(Pago.id == pago_id).first()
+                if pago:
+                    VentaDetailsDialog(self.parent, pago.venta)
+                else:
+                    messagebox.showerror("Error", "No se encontró el pago")
+
+            else:
+                messagebox.showinfo("Información", "Tipo de búsqueda no soportado")
+
+            db.close()
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al cargar detalles: {str(e)}")
     
     def export_results(self):
         """Exportar resultados de búsqueda"""

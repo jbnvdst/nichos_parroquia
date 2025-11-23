@@ -111,15 +111,16 @@ class Venta(Base):
     
     @property
     def total_pagado(self):
-        return sum(pago.monto for pago in self.pagos) + self.enganche
+        """Total pagado incluyendo enganche (sin incluir mantenimiento)"""
+        return sum(pago.monto for pago in self.pagos if pago.concepto != 'Mantenimiento') + self.enganche
 
     @property
     def total_pagos_adicionales(self):
-        """Total de pagos adicionales (sin incluir enganche)"""
-        return sum(pago.monto for pago in self.pagos)
+        """Total de pagos adicionales (sin incluir enganche ni mantenimiento)"""
+        return sum(pago.monto for pago in self.pagos if pago.concepto != 'Mantenimiento')
 
     def actualizar_saldo(self):
-        """Actualizar saldo restante basado en los pagos realizados"""
+        """Actualizar saldo restante basado en los pagos realizados (excluyendo mantenimiento)"""
         # Obtener la sesión actual y consultar los pagos desde la base de datos
         # para asegurar que incluya todos los pagos, incluso los recién agregados
         from sqlalchemy.orm import object_session
@@ -129,8 +130,12 @@ class Venta(Base):
 
         if session:
             # Consultar la suma total de pagos desde la base de datos
+            # EXCLUIR pagos de mantenimiento del cálculo del saldo
             try:
-                total_pagos_db = session.query(func.sum(Pago.monto)).filter(Pago.venta_id == self.id).scalar() or 0
+                total_pagos_db = session.query(func.sum(Pago.monto)).filter(
+                    Pago.venta_id == self.id,
+                    Pago.concepto != 'Mantenimiento'
+                ).scalar() or 0
             except:
                 # Fallback a usar la relación
                 total_pagos_db = self.total_pagos_adicionales
@@ -138,7 +143,7 @@ class Venta(Base):
             # Fallback si no hay sesión
             total_pagos_db = self.total_pagos_adicionales
 
-        # El saldo restante debe ser: precio_total - enganche - pagos_adicionales
+        # El saldo restante debe ser: precio_total - enganche - pagos_adicionales (sin mantenimiento)
         self.saldo_restante = self.precio_total - self.enganche - total_pagos_db
         self.pagado_completamente = self.saldo_restante <= 0
 

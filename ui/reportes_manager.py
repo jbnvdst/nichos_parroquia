@@ -146,19 +146,20 @@ class ReportesManager:
     
     def create_action_buttons(self, parent):
         """Crear botones de acción"""
-        ttk.Button(parent, text="Exportar Reporte", 
+        ttk.Button(parent, text="Exportar Reporte",
                   command=self.export_report).pack(side=tk.LEFT, padx=5)
-        
-        ttk.Button(parent, text="Imprimir", 
+
+        ttk.Button(parent, text="Imprimir",
                   command=self.print_report).pack(side=tk.LEFT, padx=5)
-        
-        ttk.Button(parent, text="Enviar por Email", 
-                  command=self.email_report).pack(side=tk.LEFT, padx=5)
-        
-        ttk.Button(parent, text="Programar Reporte", 
-                  command=self.schedule_report).pack(side=tk.LEFT, padx=5)
-        
-        ttk.Button(parent, text="Limpiar", 
+
+        # Botones comentados - funcionalidad no implementada aún
+        # ttk.Button(parent, text="Enviar por Email",
+        #           command=self.email_report).pack(side=tk.LEFT, padx=5)
+
+        # ttk.Button(parent, text="Programar Reporte",
+        #           command=self.schedule_report).pack(side=tk.LEFT, padx=5)
+
+        ttk.Button(parent, text="Limpiar",
                   command=self.clear_preview).pack(side=tk.RIGHT, padx=5)
     
     def on_tipo_changed(self, event=None):
@@ -502,9 +503,11 @@ class ReportesManager:
         # Calcular totales
         total_ventas = 0
         total_pagos = 0
+        total_mantenimiento = 0
         ventas_count = 0
         pagos_count = 0
-        
+        mantenimiento_count = 0
+
         # Ventas en el período
         query_ventas = db.query(Venta)
         if fecha_inicio and fecha_fin:
@@ -514,13 +517,13 @@ class ReportesManager:
                     datetime.combine(fecha_fin, datetime.max.time())
                 )
             )
-        
+
         ventas = query_ventas.all()
         for venta in ventas:
             total_ventas += venta.precio_total
             ventas_count += 1
-        
-        # Pagos en el período
+
+        # Pagos en el período (separando mantenimiento de pagos normales)
         query_pagos = db.query(Pago)
         if fecha_inicio and fecha_fin:
             query_pagos = query_pagos.filter(
@@ -529,11 +532,15 @@ class ReportesManager:
                     datetime.combine(fecha_fin, datetime.max.time())
                 )
             )
-        
+
         pagos = query_pagos.all()
         for pago in pagos:
-            total_pagos += pago.monto
-            pagos_count += 1
+            if pago.concepto == 'Mantenimiento':
+                total_mantenimiento += pago.monto
+                mantenimiento_count += 1
+            else:
+                total_pagos += pago.monto
+                pagos_count += 1
         
         # Saldos pendientes (total)
         saldo_pendiente = db.query(Venta).filter(
@@ -543,10 +550,11 @@ class ReportesManager:
         db.close()
         
         columns = ['concepto', 'cantidad', 'monto']
-        
+
         data = [
             ['Ventas del Período', str(ventas_count), f"${total_ventas:,.2f}"],
-            ['Pagos del Período', str(pagos_count), f"${total_pagos:,.2f}"],
+            ['Pagos del Período (sin mantenimiento)', str(pagos_count), f"${total_pagos:,.2f}"],
+            ['Pagos de Mantenimiento', str(mantenimiento_count), f"${total_mantenimiento:,.2f}"],
             ['Saldos Pendientes', '-', f"${saldo_pendiente:,.2f}"],
             ['Diferencia (Pagos - Ventas)', '-', f"${total_pagos - total_ventas:,.2f}"]
         ]
