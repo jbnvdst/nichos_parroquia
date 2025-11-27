@@ -193,25 +193,29 @@ class VentasManager:
                 # Crear venta
                 numero_contrato = generar_numero_contrato()
                 
+                # NOTA: Para simplificar la contabilidad, el enganche siempre es 0 en la venta.
+                # Todo el dinero se registra a través de pagos (recibos).
+                # Para contado: se crea un pago por el total
+                # Para crédito: se crea un pago inicial (que puede ser un enganche)
                 venta = Venta(
                     numero_contrato=numero_contrato,
                     cliente_id=cliente.id,
                     nicho_id=nicho.id,
                     precio_total=dialog.result['precio_total'],
-                    enganche=dialog.result['enganche'],
-                    saldo_restante=dialog.result['precio_total'] - dialog.result['enganche'],
+                    enganche=0,  # Siempre 0, todo se maneja con pagos
+                    saldo_restante=dialog.result['precio_total'],  # Inicialmente es el precio total
                     tipo_pago=dialog.result['tipo_pago'],
-                    pagado_completamente=dialog.result['tipo_pago'] == 'contado',
+                    pagado_completamente=False,  # Se actualizará después de crear el pago
                     familia=dialog.result.get('familia'),
                     observaciones=dialog.result.get('observaciones')
                 )
-                
+
                 db.add(venta)
                 db.flush()  # Para obtener el ID de la venta
 
                 # Crear recibo automático por el pago inicial
                 # Si es contado: recibo por el total
-                # Si es crédito: recibo por el enganche
+                # Si es crédito: recibo por el enganche (si es > 0)
                 monto_pago_inicial = dialog.result['precio_total'] if dialog.result['tipo_pago'] == 'contado' else dialog.result['enganche']
                 numero_recibo_generado = None
 
@@ -229,6 +233,10 @@ class VentasManager:
                         observaciones=f"Recibo generado automáticamente al crear la venta {numero_contrato}"
                     )
                     db.add(pago_inicial)
+                    db.flush()  # Asegurar que el pago esté en la sesión
+
+                    # Actualizar saldo después de crear el pago
+                    venta.actualizar_saldo()
 
                 # Crear beneficiarios si los hay
                 if dialog.result.get('beneficiarios'):
@@ -339,13 +347,14 @@ class VentasManager:
                 # Actualizar datos de la venta
                 venta.numero_contrato = dialog.result['numero_contrato'] or venta.numero_contrato
                 venta.precio_total = dialog.result['precio_total']
-                venta.enganche = dialog.result['enganche']
-                venta.saldo_restante = dialog.result['precio_total'] - dialog.result['enganche'] - venta.total_pagado
+                # NOTA: Con la nueva lógica, el enganche siempre es 0
+                # Todo se maneja a través de pagos
+                venta.enganche = 0
                 venta.tipo_pago = dialog.result['tipo_pago']
                 venta.familia = dialog.result.get('familia')
                 venta.observaciones = dialog.result.get('observaciones')
 
-                # Actualizar estado de pago
+                # Actualizar saldo basado en pagos
                 venta.actualizar_saldo()
 
                 db.commit()
@@ -734,7 +743,9 @@ class VentaDialog:
 
         # Precio
         ttk.Label(parent, text="Precio Total:*").grid(row=row_offset+1, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(parent, textvariable=self.precio_var, width=30).grid(row=row_offset+1, column=1, sticky=(tk.W, tk.E), pady=5)
+        precio_entry = ttk.Entry(parent, textvariable=self.precio_var, width=30)
+        precio_entry.grid(row=row_offset+1, column=1, sticky=(tk.W, tk.E), pady=5)
+        precio_entry.bind('<KeyRelease>', self.on_precio_changed)
 
         # Tipo de pago
         ttk.Label(parent, text="Tipo de Pago:*").grid(row=row_offset+2, column=0, sticky=tk.W, pady=5)
@@ -859,16 +870,24 @@ class VentaDialog:
             except (IndexError, ValueError):
                 pass
     
+    def on_precio_changed(self, event=None):
+        """Manejar cambio en el precio"""
+        # Recalcular saldo cuando cambia el precio
+        self.calculate_saldo()
+
     def on_tipo_pago_changed(self):
         """Manejar cambio de tipo de pago"""
         if self.tipo_pago_var.get() == "contado":
+            # Para contado, el enganche es 0 (todo se paga mediante un recibo/pago)
             self.enganche_entry.config(state="disabled")
-            self.enganche_var.set(self.precio_var.get())
+            self.enganche_var.set("0")
         else:
+            # Para crédito, habilitar campo de enganche
             self.enganche_entry.config(state="normal")
-            if self.enganche_var.get() == self.precio_var.get():
+            # Mantener el valor actual o establecer en 0 si está vacío
+            if not self.enganche_var.get():
                 self.enganche_var.set("0")
-        
+
         self.calculate_saldo()
     
     def calculate_saldo(self, event=None):
