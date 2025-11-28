@@ -285,7 +285,167 @@ class PDFGenerator:
         # Generar PDF
         doc.build(story)
         return output_path
-    
+
+    def generar_consentimiento_urna(self, urna_data, venta_data, cliente_data, nicho_data, output_path=None):
+        """
+        Generar documento de consentimiento para depósito de urna en nicho
+
+        Args:
+            urna_data: Diccionario con datos de la urna
+            venta_data: Diccionario con datos de la venta
+            cliente_data: Diccionario con datos del cliente titular
+            nicho_data: Diccionario con datos del nicho
+            output_path: Ruta del archivo de salida
+
+        Returns:
+            Ruta del archivo PDF generado
+        """
+        if not output_path:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            consentimientos_dir = AppPaths.get_recibos_dir()  # Usar mismo directorio de recibos
+            output_path = os.path.join(consentimientos_dir, f"consentimiento_urna_{urna_data.get('numero_urna', 'xxx')}_{timestamp}.pdf")
+
+        # Crear documento con márgenes más estrechos
+        doc = SimpleDocTemplate(output_path, pagesize=letter,
+                              rightMargin=0.5*inch, leftMargin=0.5*inch,
+                              topMargin=0.5*inch, bottomMargin=0.5*inch)
+        story = []
+
+        # Encabezado de la parroquia
+        header_style = ParagraphStyle(
+            name='Header',
+            parent=self.styles['Normal'],
+            fontSize=10,
+            alignment=TA_CENTER,
+            textColor=colors.darkblue,
+            spaceAfter=3
+        )
+
+        story.append(Paragraph(f"<b>{self.parish_config['nombre']}</b>", header_style))
+        story.append(Paragraph(self.parish_config['direccion'], header_style))
+        story.append(Paragraph(f"Tel: {self.parish_config['telefono']}", header_style))
+        story.append(Spacer(1, 0.2*inch))
+
+        # Título del documento
+        title_style = ParagraphStyle(
+            name='DocumentTitle',
+            parent=self.styles['Title'],
+            fontSize=10,
+            alignment=TA_CENTER,
+            textColor=colors.darkblue,
+            spaceAfter=5,
+            fontName='Helvetica-Bold'
+        )
+        story.append(Paragraph("CONSENTIMIENTO INFORMADO", title_style))
+        story.append(Paragraph("Depósito de Urna en Nicho", title_style))
+        story.append(Spacer(1, 0.1*inch))
+
+        # Contenido del consentimiento
+        body_style = ParagraphStyle(
+            name='BodyJustified',
+            parent=self.styles['Normal'],
+            fontSize=10,
+            alignment=TA_JUSTIFY,
+            spaceAfter=8,
+            leading=12
+        )
+
+        # Información del titular y urna
+        info_data = [
+            ['INFORMACIÓN DEL TITULAR Y URNA', ''],
+            ['Titular:', f"{cliente_data.get('nombre', '')} {cliente_data.get('apellido', '')}"],
+            ['Nicho:', f"{nicho_data.get('numero', 'N/A')} - Sección {nicho_data.get('seccion', 'N/A')}"],
+            ['Nombre del Difunto:', urna_data.get('nombre_difunto', 'N/A')],
+            ['Fecha de Defunción:', urna_data.get('fecha_defuncion', 'N/A')],
+            ['Fecha de Depósito:', urna_data.get('fecha_deposito_urna', 'N/A')],
+        ]
+
+        tabla_info = Table(info_data, colWidths=[1.5*inch, 3.5*inch])
+        tabla_info.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.darkblue),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
+        ]))
+
+        story.append(tabla_info)
+        story.append(Spacer(1, 0.1*inch))
+
+        # Texto del consentimiento
+        consentimiento_text = f"""<b>DECLARACIÓN DE CONSENTIMIENTO INFORMADO</b><br/><br/>
+Yo, <b>{cliente_data.get('nombre', '')} {cliente_data.get('apellido', '')}</b>, titular del nicho ubicado en <b>{nicho_data.get('numero', 'N/A')} - Sección {nicho_data.get('seccion', 'N/A')}</b>, en esta <b>{self.parish_config['nombre']}</b>, por este medio <b>AUTORIZO Y CONSIENTO</b> el depósito de la urna conteniendo los restos de <b>{urna_data.get('nombre_difunto', 'N/A')}</b> (fallecido el <b>{urna_data.get('fecha_defuncion', 'N/A')}</b>) en el nicho de mi propiedad, de conformidad con la normatividad vigente y los términos establecidos en el contrato de venta del nicho.<br/><br/>
+<b>DECLARO QUE:</b><br/>
+• He sido informado completamente sobre el proceso de depósito de la urna en el nicho.<br/>
+• Conozco mis derechos y responsabilidades como titular del nicho.<br/>
+• Confirmo que los restos a depositar corresponden a la persona identificada en este documento.<br/>
+• He recibido una copia de este consentimiento para mis registros personales.<br/><br/>
+<b>RECONOZCO:</b><br/>
+La parroquia no se responsabiliza por daños causados por eventos naturales, accidentes, o fuerza mayor que afecten la integridad del nicho. El titular o sus herederos asumen toda responsabilidad en estos casos, conforme a lo establecido en el contrato de venta."""
+
+        story.append(Paragraph(consentimiento_text, body_style))
+        story.append(Spacer(1, 0.15*inch))
+
+        # Sección de firmas
+        firmas_style = ParagraphStyle(
+            name='FirmasStyle',
+            parent=self.styles['Normal'],
+            fontSize=9,
+            alignment=TA_CENTER,
+            spaceAfter=6
+        )
+
+        story.append(Paragraph("AUTORIZACIONES Y FIRMAS", ParagraphStyle(
+            name='FirmasTitle',
+            parent=self.styles['Normal'],
+            fontSize=10,
+            alignment=TA_CENTER,
+            fontName='Helvetica-Bold',
+            spaceAfter=10
+        )))
+
+        firmas_data = [
+            ['_' * 35, '', '_' * 35],
+            ['Firma del Titular', '', 'Sello de la Parroquia'],
+            ['', '', ''],
+            [f"{cliente_data.get('nombre', '')} {cliente_data.get('apellido', '')}",
+             '', 'Sello Parroquia'],
+            [f"Fecha: {datetime.now().strftime('%d/%m/%Y')}"],
+        ]
+
+        tabla_firmas = Table(firmas_data, colWidths=[2*inch, 0.5*inch, 2*inch])
+        tabla_firmas.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 25),
+        ]))
+
+        story.append(tabla_firmas)
+        story.append(Spacer(1, 0.15*inch))
+
+        # Pie de página con información de emisión
+        footer_style = ParagraphStyle(
+            name='Footer',
+            parent=self.styles['Normal'],
+            fontSize=7,
+            alignment=TA_CENTER,
+            textColor=colors.grey,
+            spaceAfter=3
+        )
+
+        fecha_emision = datetime.now().strftime("%d de %B de %Y a las %H:%M")
+        story.append(Paragraph(f"<i>Documento emitido: {fecha_emision}</i>", footer_style))
+        story.append(Paragraph("Este documento es válido como constancia de autorización para el depósito de urna", footer_style))
+
+        # Generar PDF
+        doc.build(story)
+        return output_path
+
     def generar_titulo_propiedad(self, venta_data, cliente_data, nicho_data, beneficiarios_data=None, output_path=None):
         """
         Generar título de propiedad en PDF

@@ -12,6 +12,7 @@ from database.models import (
 )
 from datetime import datetime, timedelta
 from sqlalchemy import and_
+from reports.pdf_generator import PDFGenerator
 
 class UrnasManager:
     def __init__(self, parent, update_status_callback):
@@ -20,6 +21,7 @@ class UrnasManager:
         self.tree = None
         self.search_var = tk.StringVar()
         self.filter_var = tk.StringVar(value="Todos")
+        self.pdf_generator = PDFGenerator()
 
     def show(self):
         """Mostrar interfaz de gestión de urnas"""
@@ -40,11 +42,14 @@ class UrnasManager:
         ttk.Button(controls_frame, text="Editar",
                   command=self.edit_urna).grid(row=0, column=1, padx=(0, 10))
 
+        ttk.Button(controls_frame, text="Imprimir Comprobante",
+                  command=self.print_consent).grid(row=0, column=2, padx=(0, 10))
+
         ttk.Button(controls_frame, text="Eliminar",
-                  command=self.delete_urna).grid(row=0, column=2, padx=(0, 10))
+                  command=self.delete_urna).grid(row=0, column=3, padx=(0, 10))
 
         ttk.Button(controls_frame, text="Actualizar",
-                  command=self.load_urnas).grid(row=0, column=3, padx=(0, 10))
+                  command=self.load_urnas).grid(row=0, column=4, padx=(0, 10))
 
         # Frame de búsqueda
         search_frame = ttk.Frame(main_frame)
@@ -240,10 +245,72 @@ class UrnasManager:
 
                 db.add(urna)
                 db.commit()
-                db.close()
 
-                messagebox.showinfo("Éxito", f"Urna #{numero_urna} registrada correctamente")
+                # Preparar datos para generar consentimiento
+                cliente = venta.cliente
+                nicho = venta.nicho
+
+                # Diccionarios con datos para el PDF
+                urna_data = {
+                    'numero_urna': numero_urna,
+                    'nombre_difunto': urna.nombre_difunto,
+                    'fecha_defuncion': urna.fecha_defuncion.strftime('%d/%m/%Y') if urna.fecha_defuncion else 'N/A',
+                    'fecha_deposito_urna': urna.fecha_deposito_urna.strftime('%d/%m/%Y') if urna.fecha_deposito_urna else 'N/A',
+                }
+
+                venta_data = {
+                    'numero_contrato': venta.numero_contrato,
+                    'saldo_restante': venta.saldo_restante,
+                }
+
+                cliente_data = {
+                    'nombre': cliente.nombre,
+                    'apellido': cliente.apellido,
+                    'cedula': cliente.cedula,
+                }
+
+                nicho_data = {
+                    'numero': nicho.numero,
+                    'seccion': nicho.seccion,
+                    'fila': nicho.fila,
+                    'columna': nicho.columna,
+                }
+
+                # Generar PDF de consentimiento
+                consentimiento_path = None
+                try:
+                    consentimiento_path = self.pdf_generator.generar_consentimiento_urna(
+                        urna_data, venta_data, cliente_data, nicho_data
+                    )
+
+                    # Preguntar si desea imprimir ahora
+                    imprimir_ahora = messagebox.askyesno(
+                        "Éxito",
+                        f"Urna #{numero_urna} registrada correctamente\n\n"
+                        f"¿Desea imprimir el documento de consentimiento ahora?"
+                    )
+
+                    if imprimir_ahora and consentimiento_path:
+                        # Abrir el archivo PDF
+                        import subprocess
+                        import os
+                        if os.name == 'nt':  # Windows
+                            os.startfile(consentimiento_path)
+                        else:  # Linux y macOS
+                            subprocess.Popen(['xdg-open', consentimiento_path])
+
+                except Exception as pdf_error:
+                    # Si hay error en PDF, mostrar advertencia pero continuar
+                    messagebox.showwarning(
+                        "Advertencia",
+                        f"Urna #{numero_urna} registrada correctamente\n\n"
+                        f"Sin embargo, hubo un error al generar el PDF de consentimiento:\n{str(pdf_error)}"
+                    )
+
+                db.close()
                 self.load_urnas()
+                self.update_status(f"Urna #{numero_urna} registrada exitosamente")
+
             except Exception as e:
                 messagebox.showerror("Error", f"Error al registrar urna: {str(e)}")
 
@@ -325,6 +392,78 @@ class UrnasManager:
             except Exception as e:
                 messagebox.showerror("Error", f"Error al eliminar urna: {str(e)}")
 
+    def print_consent(self):
+        """Imprimir consentimiento de urna seleccionada"""
+        selection = self.tree.selection()
+        if not selection:
+            messagebox.showwarning("Advertencia", "Selecciona una urna para imprimir el consentimiento")
+            return
+
+        item = self.tree.item(selection[0])
+        nicho_numero = item['values'][0]
+        urna_numero = item['values'][1]
+
+        try:
+            db = get_db_session()
+            urna = db.query(Urna).join(Venta).join(Nicho).filter(
+                and_(Nicho.numero == nicho_numero, Urna.numero_urna == urna_numero)
+            ).first()
+
+            if not urna:
+                messagebox.showerror("Error", "Urna no encontrada")
+                db.close()
+                return
+
+            # Obtener datos relacionados
+            venta = urna.venta
+            cliente = venta.cliente
+            nicho = venta.nicho
+
+            # Preparar datos para PDF
+            urna_data = {
+                'numero_urna': urna.numero_urna,
+                'nombre_difunto': urna.nombre_difunto,
+                'fecha_defuncion': urna.fecha_defuncion.strftime('%d/%m/%Y') if urna.fecha_defuncion else 'N/A',
+                'fecha_deposito_urna': urna.fecha_deposito_urna.strftime('%d/%m/%Y') if urna.fecha_deposito_urna else 'N/A',
+            }
+
+            venta_data = {
+                'numero_contrato': venta.numero_contrato,
+                'saldo_restante': venta.saldo_restante,
+            }
+
+            cliente_data = {
+                'nombre': cliente.nombre,
+                'apellido': cliente.apellido,
+                'cedula': cliente.cedula,
+            }
+
+            nicho_data = {
+                'numero': nicho.numero,
+                'seccion': nicho.seccion,
+                'fila': nicho.fila,
+                'columna': nicho.columna,
+            }
+
+            # Generar PDF de consentimiento
+            consentimiento_path = self.pdf_generator.generar_consentimiento_urna(
+                urna_data, venta_data, cliente_data, nicho_data
+            )
+
+            # Abrir el archivo PDF generado
+            import subprocess
+            import os
+            if os.name == 'nt':  # Windows
+                os.startfile(consentimiento_path)
+            else:  # Linux y macOS
+                subprocess.Popen(['xdg-open', consentimiento_path])
+
+            messagebox.showinfo("Éxito", f"Consentimiento generado e impreso:\n{consentimiento_path}")
+            db.close()
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al imprimir consentimiento: {str(e)}")
+
     def update_info_display(self, info_frame):
         """Actualizar información de resumen"""
         db = get_db_session()
@@ -379,21 +518,41 @@ class UrnasDialog:
         self.fecha_defuncion_var = tk.StringVar(
             value=urna.fecha_defuncion.strftime("%d/%m/%Y") if urna else ""
         )
-        ttk.Entry(main_frame, textvariable=self.fecha_defuncion_var).grid(row=2, column=1, sticky=(tk.W, tk.E), pady=5)
+        fecha_defuncion_inicial = datetime.now()
+        if urna and urna.fecha_defuncion:
+            fecha_defuncion_inicial = urna.fecha_defuncion
+        fecha_defuncion_entry = DateEntry(main_frame, textvariable=self.fecha_defuncion_var,
+                                          year=fecha_defuncion_inicial.year, month=fecha_defuncion_inicial.month,
+                                          day=fecha_defuncion_inicial.day, dateformat='%d/%m/%Y',
+                                          width=25, background='darkblue', foreground='white',
+                                          borderwidth=2, locale='es_ES')
+        fecha_defuncion_entry.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=5)
 
         # Fecha de deposito
         ttk.Label(main_frame, text="Fecha de Deposito de Urna:").grid(row=3, column=0, sticky=tk.W, pady=5)
         self.fecha_deposito_var = tk.StringVar(
             value=urna.fecha_deposito_urna.strftime("%d/%m/%Y") if urna else datetime.now().strftime("%d/%m/%Y")
         )
-        ttk.Entry(main_frame, textvariable=self.fecha_deposito_var).grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5)
+        fecha_deposito_inicial = urna.fecha_deposito_urna if urna else datetime.now()
+        fecha_deposito_entry = DateEntry(main_frame, textvariable=self.fecha_deposito_var,
+                                         year=fecha_deposito_inicial.year, month=fecha_deposito_inicial.month,
+                                         day=fecha_deposito_inicial.day, dateformat='%d/%m/%Y',
+                                         width=25, background='darkblue', foreground='white',
+                                         borderwidth=2, locale='es_ES')
+        fecha_deposito_entry.grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5)
 
         # Fecha de cremación
         ttk.Label(main_frame, text="Fecha de Cremacion:").grid(row=4, column=0, sticky=tk.W, pady=5)
         self.fecha_cremacion_var = tk.StringVar(
             value=urna.fecha_cremacion.strftime("%d/%m/%Y") if urna and urna.fecha_cremacion else ""
         )
-        ttk.Entry(main_frame, textvariable=self.fecha_cremacion_var).grid(row=4, column=1, sticky=(tk.W, tk.E), pady=5)
+        fecha_cremacion_inicial = urna.fecha_cremacion if urna and urna.fecha_cremacion else datetime.now()
+        fecha_cremacion_entry = DateEntry(main_frame, textvariable=self.fecha_cremacion_var,
+                                          year=fecha_cremacion_inicial.year, month=fecha_cremacion_inicial.month,
+                                          day=fecha_cremacion_inicial.day, dateformat='%d/%m/%Y',
+                                          width=25, background='darkblue', foreground='white',
+                                          borderwidth=2, locale='es_ES')
+        fecha_cremacion_entry.grid(row=4, column=1, sticky=(tk.W, tk.E), pady=5)
 
         # Nombre del depositante
         ttk.Label(main_frame, text="Nombre del Depositante:").grid(row=5, column=0, sticky=tk.W, pady=5)
@@ -490,13 +649,28 @@ class UrnasDialog:
 
             # Procesar fechas
             try:
-                fecha_defuncion = datetime.strptime(self.fecha_defuncion_var.get(), "%d/%m/%Y")
-                fecha_deposito = datetime.strptime(self.fecha_deposito_var.get(), "%d/%m/%Y")
+                # Intentar con 4 dígitos primero, luego con 2 dígitos
+                fecha_defuncion_str = self.fecha_defuncion_var.get()
+                try:
+                    fecha_defuncion = datetime.strptime(fecha_defuncion_str, "%d/%m/%Y")
+                except ValueError:
+                    fecha_defuncion = datetime.strptime(fecha_defuncion_str, "%d/%m/%y")
+
+                fecha_deposito_str = self.fecha_deposito_var.get()
+                try:
+                    fecha_deposito = datetime.strptime(fecha_deposito_str, "%d/%m/%Y")
+                except ValueError:
+                    fecha_deposito = datetime.strptime(fecha_deposito_str, "%d/%m/%y")
+
                 fecha_cremacion = None
                 if self.fecha_cremacion_var.get():
-                    fecha_cremacion = datetime.strptime(self.fecha_cremacion_var.get(), "%d/%m/%Y")
+                    fecha_cremacion_str = self.fecha_cremacion_var.get()
+                    try:
+                        fecha_cremacion = datetime.strptime(fecha_cremacion_str, "%d/%m/%Y")
+                    except ValueError:
+                        fecha_cremacion = datetime.strptime(fecha_cremacion_str, "%d/%m/%y")
             except ValueError:
-                messagebox.showerror("Error", "Formato de fecha inválido. Usa DD/MM/YYYY")
+                messagebox.showerror("Error", "Formato de fecha inválido. Usa DD/MM/YYYY o DD/MM/YY")
                 return
 
             self.result = {
