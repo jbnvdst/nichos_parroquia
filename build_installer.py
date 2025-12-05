@@ -807,7 +807,7 @@ def main():
     parser.add_argument(
         "--version",
         "-v",
-        default="1.1.10",
+        default="1.1.12",
         help="Versión de la aplicación (formato: X.Y.Z)"
     )
     parser.add_argument(

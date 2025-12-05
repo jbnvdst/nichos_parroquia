@@ -27,7 +27,7 @@ from github_updater import GitHubUpdater
 
 class CriptasApp:
     # Versión de la aplicación (actualizar en cada release)
-    VERSION = "1.10.11"
+    VERSION = "1.1.12"
 
     def __init__(self):
         self.root = tk.Tk()
@@ -114,7 +114,7 @@ class CriptasApp:
                         # Verificar si la tabla existe
                         cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'")
                         if not cursor.fetchone():
-                            print(f"⚠ La tabla '{table_name}' no existe aún (será creada por SQLAlchemy)")
+                            print(f"La tabla '{table_name}' no existe aún (será creada por SQLAlchemy)")
                             continue
 
                         # Obtener columnas existentes
@@ -130,10 +130,10 @@ class CriptasApp:
                                     conn.commit()
                                     print(f"✓ Columna '{column_name}' agregada exitosamente")
                                 except sqlite3.OperationalError as e:
-                                    print(f"⚠ Error al agregar '{column_name}': {str(e)}")
+                                    print(f"Error al agregar '{column_name}': {str(e)}")
                                     conn.rollback()
                     except Exception as e:
-                        print(f"⚠ Error en tabla '{table_name}': {str(e)}")
+                        print(f"Error en tabla '{table_name}': {str(e)}")
 
                 conn.close()
         except Exception as e:
