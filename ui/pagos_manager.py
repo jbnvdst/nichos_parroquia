@@ -707,8 +707,8 @@ class PagoDialog:
             self.metodo_pago_var.set(self.pago.metodo_pago)
             self.concepto_var.set(self.pago.concepto)
             self.observaciones_var.set(self.pago.observaciones or "")
-            # Cargar fecha del pago (formato: YYYY-MM-DD)
-            self.fecha_pago_var.set(self.pago.fecha_pago.strftime('%Y-%m-%d'))
+            # Cargar fecha del pago (formato: DD/MM/YYYY)
+            self.fecha_pago_var.set(self.pago.fecha_pago.strftime('%d/%m/%Y'))
 
             # Cargar información de la venta
             self.load_venta_info()
@@ -800,13 +800,13 @@ class PagoDialog:
             fecha_inicial = datetime.now()
             if self.fecha_pago_var.get():
                 try:
-                    fecha_inicial = datetime.strptime(self.fecha_pago_var.get(), '%Y-%m-%d')
+                    fecha_inicial = datetime.strptime(self.fecha_pago_var.get(), '%d/%m/%Y')
                 except ValueError:
                     fecha_inicial = datetime.now()
 
             fecha_entry = DateEntry(main_frame, textvariable=self.fecha_pago_var,
                                    year=fecha_inicial.year, month=fecha_inicial.month,
-                                   day=fecha_inicial.day, dateformat='%Y-%m-%d',
+                                   day=fecha_inicial.day, date_pattern='dd/MM/yyyy',
                                    width=25, background='darkblue', foreground='white',
                                    borderwidth=2, locale='es_ES')
             fecha_entry.grid(row=9, column=1, sticky=(tk.W, tk.E), pady=5)
@@ -1051,10 +1051,10 @@ class PagoDialog:
                 messagebox.showerror("Error", "La fecha del pago es obligatoria")
                 return
             try:
-                # DateEntry devuelve la fecha en formato YYYY-MM-DD
-                fecha_pago = datetime.strptime(fecha_str, '%Y-%m-%d')
+                # DateEntry devuelve la fecha en formato DD/MM/YYYY
+                fecha_pago = datetime.strptime(fecha_str, '%d/%m/%Y')
             except ValueError:
-                messagebox.showerror("Error", "Formato de fecha inválido")
+                messagebox.showerror("Error", "Formato de fecha inválido. Use DD/MM/YYYY")
                 return
 
         self.result = {

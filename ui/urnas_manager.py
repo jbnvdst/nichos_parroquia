@@ -523,7 +523,7 @@ class UrnasDialog:
             fecha_defuncion_inicial = urna.fecha_defuncion
         fecha_defuncion_entry = DateEntry(main_frame, textvariable=self.fecha_defuncion_var,
                                           year=fecha_defuncion_inicial.year, month=fecha_defuncion_inicial.month,
-                                          day=fecha_defuncion_inicial.day, dateformat='%d/%m/%Y',
+                                          day=fecha_defuncion_inicial.day, date_pattern='dd/MM/yyyy',
                                           width=25, background='darkblue', foreground='white',
                                           borderwidth=2, locale='es_ES')
         fecha_defuncion_entry.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=5)
@@ -536,7 +536,7 @@ class UrnasDialog:
         fecha_deposito_inicial = urna.fecha_deposito_urna if urna else datetime.now()
         fecha_deposito_entry = DateEntry(main_frame, textvariable=self.fecha_deposito_var,
                                          year=fecha_deposito_inicial.year, month=fecha_deposito_inicial.month,
-                                         day=fecha_deposito_inicial.day, dateformat='%d/%m/%Y',
+                                         day=fecha_deposito_inicial.day, date_pattern='dd/MM/yyyy',
                                          width=25, background='darkblue', foreground='white',
                                          borderwidth=2, locale='es_ES')
         fecha_deposito_entry.grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5)
@@ -549,7 +549,7 @@ class UrnasDialog:
         fecha_cremacion_inicial = urna.fecha_cremacion if urna and urna.fecha_cremacion else datetime.now()
         fecha_cremacion_entry = DateEntry(main_frame, textvariable=self.fecha_cremacion_var,
                                           year=fecha_cremacion_inicial.year, month=fecha_cremacion_inicial.month,
-                                          day=fecha_cremacion_inicial.day, dateformat='%d/%m/%Y',
+                                          day=fecha_cremacion_inicial.day, date_pattern='dd/MM/yyyy',
                                           width=25, background='darkblue', foreground='white',
                                           borderwidth=2, locale='es_ES')
         fecha_cremacion_entry.grid(row=4, column=1, sticky=(tk.W, tk.E), pady=5)
@@ -647,30 +647,15 @@ class UrnasDialog:
             else:
                 venta_id = self.urna.venta_id
 
-            # Procesar fechas
+            # Procesar fechas (formato DD/MM/YYYY)
             try:
-                # Intentar con 4 dígitos primero, luego con 2 dígitos
-                fecha_defuncion_str = self.fecha_defuncion_var.get()
-                try:
-                    fecha_defuncion = datetime.strptime(fecha_defuncion_str, "%d/%m/%Y")
-                except ValueError:
-                    fecha_defuncion = datetime.strptime(fecha_defuncion_str, "%d/%m/%y")
-
-                fecha_deposito_str = self.fecha_deposito_var.get()
-                try:
-                    fecha_deposito = datetime.strptime(fecha_deposito_str, "%d/%m/%Y")
-                except ValueError:
-                    fecha_deposito = datetime.strptime(fecha_deposito_str, "%d/%m/%y")
-
+                fecha_defuncion = datetime.strptime(self.fecha_defuncion_var.get(), "%d/%m/%Y")
+                fecha_deposito = datetime.strptime(self.fecha_deposito_var.get(), "%d/%m/%Y")
                 fecha_cremacion = None
                 if self.fecha_cremacion_var.get():
-                    fecha_cremacion_str = self.fecha_cremacion_var.get()
-                    try:
-                        fecha_cremacion = datetime.strptime(fecha_cremacion_str, "%d/%m/%Y")
-                    except ValueError:
-                        fecha_cremacion = datetime.strptime(fecha_cremacion_str, "%d/%m/%y")
+                    fecha_cremacion = datetime.strptime(self.fecha_cremacion_var.get(), "%d/%m/%Y")
             except ValueError:
-                messagebox.showerror("Error", "Formato de fecha inválido. Usa DD/MM/YYYY o DD/MM/YY")
+                messagebox.showerror("Error", "Formato de fecha inválido. Use DD/MM/YYYY")
                 return
 
             self.result = {
