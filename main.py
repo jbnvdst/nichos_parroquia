@@ -27,7 +27,7 @@ from github_updater import GitHubUpdater
 
 class CriptasApp:
     # Versión de la aplicación (actualizar en cada release)
-    VERSION = "1.1.12"
+    VERSION = "1.1.13"
 
     def __init__(self):
         self.root = tk.Tk()

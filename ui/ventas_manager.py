@@ -344,6 +344,16 @@ class VentasManager:
             dialog = VentaDialog(self.parent, "Editar Venta", venta)
 
             if dialog.result:
+                # Actualizar datos del cliente
+                cliente = venta.cliente
+                if cliente and dialog.result.get('cliente'):
+                    cliente_data = dialog.result['cliente']
+                    cliente.nombre = cliente_data.get('nombre') or cliente.nombre
+                    cliente.apellido = cliente_data.get('apellido') or cliente.apellido
+                    cliente.telefono = cliente_data.get('telefono')
+                    cliente.email = cliente_data.get('email')
+                    cliente.direccion = cliente_data.get('direccion')
+
                 # Actualizar datos de la venta
                 venta.numero_contrato = dialog.result['numero_contrato'] or venta.numero_contrato
                 venta.precio_total = dialog.result['precio_total']
@@ -356,6 +366,24 @@ class VentasManager:
 
                 # Actualizar saldo basado en pagos
                 venta.actualizar_saldo()
+
+                # Actualizar beneficiarios
+                # Primero eliminar los beneficiarios existentes
+                for beneficiario in venta.beneficiarios:
+                    db.delete(beneficiario)
+
+                # Luego agregar los nuevos beneficiarios
+                if dialog.result.get('beneficiarios'):
+                    for i, beneficiario_data in enumerate(dialog.result['beneficiarios'], 1):
+                        beneficiario_cliente = self.get_or_create_cliente(db, beneficiario_data)
+                        if beneficiario_cliente:
+                            nuevo_beneficiario = Beneficiario(
+                                venta_id=venta.id,
+                                titular_id=venta.cliente_id,
+                                beneficiario_id=beneficiario_cliente.id,
+                                orden=i
+                            )
+                            db.add(nuevo_beneficiario)
 
                 db.commit()
                 db.close()
