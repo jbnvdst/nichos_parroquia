@@ -837,9 +837,11 @@ class VentaDialog:
         btn_frame = ttk.Frame(parent)
         btn_frame.grid(row=2, column=0, columnspan=2, pady=10)
         
-        ttk.Button(btn_frame, text="Agregar Beneficiario", 
+        ttk.Button(btn_frame, text="Agregar Beneficiario",
                   command=self.add_beneficiario).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="Eliminar Beneficiario", 
+        ttk.Button(btn_frame, text="Editar Beneficiario",
+                  command=self.edit_beneficiario).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Eliminar Beneficiario",
                   command=self.remove_beneficiario).pack(side=tk.LEFT, padx=5)
         
         # Cargar beneficiarios existentes
@@ -933,12 +935,27 @@ class VentaDialog:
         if len(self.beneficiarios) >= 2:
             messagebox.showwarning("Límite Alcanzado", "Máximo 2 beneficiarios permitidos")
             return
-        
+
         dialog = BeneficiarioDialog(self.dialog, "Agregar Beneficiario")
         if dialog.result:
             self.beneficiarios.append(dialog.result)
             self.update_beneficiarios_tree()
-    
+
+    def edit_beneficiario(self):
+        """Editar beneficiario seleccionado"""
+        selected = self.beneficiarios_tree.selection()
+        if not selected:
+            messagebox.showwarning("Advertencia", "Seleccione un beneficiario para editar")
+            return
+
+        index = self.beneficiarios_tree.index(selected[0])
+        beneficiario_actual = self.beneficiarios[index]
+
+        dialog = BeneficiarioDialog(self.dialog, "Editar Beneficiario", beneficiario_actual)
+        if dialog.result:
+            self.beneficiarios[index] = dialog.result
+            self.update_beneficiarios_tree()
+
     def remove_beneficiario(self):
         """Eliminar beneficiario seleccionado"""
         selected = self.beneficiarios_tree.selection()
@@ -1108,9 +1125,10 @@ class VentaDialog:
 
 
 class BeneficiarioDialog:
-    def __init__(self, parent, title):
+    def __init__(self, parent, title, beneficiario_data=None):
         self.result = None
-        
+        self.beneficiario_data = beneficiario_data  # Datos existentes para edición
+
         # Crear ventana modal
         self.dialog = tk.Toplevel(parent)
         self.dialog.title(title)
@@ -1118,15 +1136,16 @@ class BeneficiarioDialog:
         self.dialog.resizable(False, False)
         self.dialog.transient(parent)
         self.dialog.grab_set()
-        
+
         # Variables
         self.nombre_var = tk.StringVar()
         self.apellido_var = tk.StringVar()
         self.telefono_var = tk.StringVar()
         self.email_var = tk.StringVar()
         self.direccion_var = tk.StringVar()
-        
+
         self.create_widgets()
+        self.load_beneficiario_data()  # Cargar datos si es edición
         self.center_window()
         
         # Esperar a que se cierre la ventana
@@ -1181,7 +1200,18 @@ class BeneficiarioDialog:
         x = (self.dialog.winfo_screenwidth() // 2) - (self.dialog.winfo_width() // 2)
         y = (self.dialog.winfo_screenheight() // 2) - (self.dialog.winfo_height() // 2)
         self.dialog.geometry(f"+{x}+{y}")
-    
+
+    def load_beneficiario_data(self):
+        """Cargar datos del beneficiario si es modo edición"""
+        if self.beneficiario_data:
+            self.nombre_var.set(self.beneficiario_data.get('nombre', ''))
+            self.apellido_var.set(self.beneficiario_data.get('apellido', ''))
+            self.telefono_var.set(self.beneficiario_data.get('telefono', '') or '')
+            self.email_var.set(self.beneficiario_data.get('email', '') or '')
+            direccion = self.beneficiario_data.get('direccion', '') or ''
+            self.direccion_text.delete("1.0", tk.END)
+            self.direccion_text.insert("1.0", direccion)
+
     def save(self):
         """Guardar beneficiario"""
         # Validar campos obligatorios
